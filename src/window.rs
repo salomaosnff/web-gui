@@ -1,0 +1,219 @@
+use std::{
+  collections::HashMap,
+  hash::{Hash, Hasher},
+  sync::{Arc, RwLock},
+};
+
+use tao::{
+  event::{self, Event},
+  event_loop::EventLoop,
+  window::WindowId,
+};
+use wry::{http::Request, RequestAsyncResponder, WebViewBuilder};
+
+use crate::app::{App, Application};
+
+pub enum AppWindowEvent {
+  Event {
+    name: String,
+    payload: serde_json::Value,
+    target: Vec<u32>,
+  },
+  Close {
+    window_id: u32,
+  },
+  Unknown,
+}
+
+impl Into<AppWindowEvent> for Event<'_, AppWindowEvent> {
+  fn into(self) -> AppWindowEvent {
+    match self {
+      Event::WindowEvent {
+        window_id, event, ..
+      } => match event {
+        tao::event::WindowEvent::CloseRequested => AppWindowEvent::Close {
+          window_id: ApplicationWindow::window_id_to_u32(window_id),
+        },
+        _ => AppWindowEvent::Unknown,
+      },
+      _ => AppWindowEvent::Unknown,
+    }
+  }
+}
+
+pub struct ApplicationWindow {
+  tao_window: Arc<tao::window::Window>,
+  wry_webview: wry::WebView,
+}
+
+unsafe impl Send for ApplicationWindow {}
+unsafe impl Sync for ApplicationWindow {}
+
+pub type AppWindow = Arc<ApplicationWindow>;
+
+impl ApplicationWindow {
+  pub fn window_id_to_u32(window_id: WindowId) -> u32 {
+    let id = &format!("{:?}", window_id)[18..];
+    let id = id.trim_end_matches(")");
+    id.parse().expect("Failed to parse window id")
+  }
+
+  pub fn id(&self) -> u32 {
+    Self::window_id_to_u32(self.tao_window.id())
+  }
+
+  pub fn set_title(&self, title: &str) {
+    self.tao_window.set_title(title);
+  }
+
+  pub fn show(&self) {
+    self.tao_window.set_visible(true);
+  }
+
+  pub fn hide(&self) {
+    self.tao_window.set_visible(false);
+  }
+
+  pub fn eval(&self, script: &str) {
+    self.wry_webview.evaluate_script(script).unwrap();
+  }
+
+  pub fn emit(&self, event: &str, payload: serde_json::Value) {
+    self.eval(
+      format!(
+        "window.__.dispatch({}, {});",
+        serde_json::to_string(event).unwrap(),
+        serde_json::to_string(&payload).unwrap()
+      )
+      .as_str(),
+    );
+  }
+}
+
+pub type CustomProtocolHandler = dyn Fn(Request<Vec<u8>>, RequestAsyncResponder) + 'static;
+
+pub struct AppWindowBuilder {
+  is_main: bool,
+  app: App,
+  tao_window_builder: tao::window::WindowBuilder,
+  url: Option<String>,
+  custom_protocols: HashMap<String, Box<CustomProtocolHandler>>,
+}
+
+impl AppWindowBuilder {
+  pub fn new(app: App) -> Self {
+    let tao_window_builder = tao::window::WindowBuilder::new();
+
+    Self {
+      is_main: false,
+      app,
+      tao_window_builder,
+      url: None,
+      custom_protocols: HashMap::new(),
+    }
+  }
+
+  pub fn with_title(mut self, title: &str) -> Self {
+    self.tao_window_builder = self.tao_window_builder.with_title(title);
+
+    self
+  }
+
+  pub fn with_url(mut self, url: &str) -> Self {
+    self.url = Some(url.to_string());
+
+    self
+  }
+
+  pub fn with_html(self, html: &str) -> Self {
+    self.with_url(&format!("data:text/html,{}", html))
+  }
+
+  pub fn with_protocol<H>(mut self, schema: &str, handler: H) -> Self
+  where
+    H: Fn(Request<Vec<u8>>, RequestAsyncResponder) + 'static,
+  {
+    self
+      .custom_protocols
+      .insert(schema.to_string(), Box::new(handler));
+
+    self
+  }
+
+  pub fn main(mut self) -> Self {
+    self.is_main = true;
+
+    self
+  }
+
+  pub fn build(self, event_loop: &EventLoop<AppWindowEvent>) -> Arc<RwLock<ApplicationWindow>> {
+    let tao_window = Arc::new(
+      self
+        .tao_window_builder
+        .build(event_loop)
+        .expect("Failed to build window"),
+    );
+
+    #[cfg(any(
+      target_os = "windows",
+      target_os = "macos",
+      target_os = "ios",
+      target_os = "android"
+    ))]
+    let mut builder = WebViewBuilder::new(&tao_window);
+
+    #[cfg(not(any(
+      target_os = "windows",
+      target_os = "macos",
+      target_os = "ios",
+      target_os = "android"
+    )))]
+    let mut builder = {
+      use tao::platform::unix::WindowExtUnix;
+      use wry::WebViewBuilderExtUnix;
+      let vbox = tao_window.default_vbox().unwrap();
+      wry::WebViewBuilder::new_gtk(vbox)
+    };
+
+    builder = builder.with_initialization_script(&format!(
+      "Object.defineProperty(window, 'ID', {{ value: {}, writable: false, enumerable: true }});",
+      ApplicationWindow::window_id_to_u32(tao_window.id())
+    ));
+    builder = builder.with_initialization_script(include_str!("./scripts/init.js"));
+
+    if let Some(url) = self.url {
+      builder = builder.with_url(&url);
+    }
+
+    for (name, handler) in self.custom_protocols {
+      builder = builder.with_asynchronous_custom_protocol(name, handler);
+    }
+    #[cfg(debug_assertions)]
+    {
+      builder = builder.with_devtools(true);
+    }
+
+    let wry_webview = builder.build().expect("Failed to build webview");
+
+    #[cfg(debug_assertions)]
+    {
+      wry_webview.open_devtools();
+    }
+
+    let window = Arc::new(RwLock::new(ApplicationWindow {
+      tao_window: tao_window.clone(),
+      wry_webview,
+    }));
+
+    let mut app = self.app.write().expect("App lock is poisoned");
+    let window_id = window.read().expect("Window lock is poisoned").id();
+
+    app.windows.insert(window_id, window.clone());
+
+    if self.is_main {
+      app.main_window_id = Some(window_id);
+    }
+
+    window
+  }
+}
