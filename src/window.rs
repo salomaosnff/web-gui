@@ -1,17 +1,12 @@
 use std::{
   collections::HashMap,
-  hash::{Hash, Hasher},
   sync::{Arc, RwLock},
 };
 
-use tao::{
-  event::{self, Event},
-  event_loop::EventLoop,
-  window::WindowId,
-};
-use wry::{http::Request, RequestAsyncResponder, WebViewBuilder};
+use tao::{event::Event, event_loop::EventLoop, window::WindowId};
+use wry::{http::Request, RequestAsyncResponder};
 
-use crate::app::{App, Application};
+use crate::app::App;
 
 pub enum AppWindowEvent {
   Event {
@@ -92,16 +87,16 @@ impl ApplicationWindow {
 
 pub type CustomProtocolHandler = dyn Fn(Request<Vec<u8>>, RequestAsyncResponder) + 'static;
 
-pub struct AppWindowBuilder {
+pub struct AppWindowBuilder<T> {
   is_main: bool,
-  app: App,
+  app: App<T>,
   tao_window_builder: tao::window::WindowBuilder,
   url: Option<String>,
   custom_protocols: HashMap<String, Box<CustomProtocolHandler>>,
 }
 
-impl AppWindowBuilder {
-  pub fn new(app: App) -> Self {
+impl<T> AppWindowBuilder<T> {
+  pub fn new(app: App<T>) -> Self {
     let tao_window_builder = tao::window::WindowBuilder::new();
 
     Self {

@@ -5,8 +5,8 @@ use wry::{
 
 use crate::app::App;
 
-pub fn create_static_protocol(
-  app: App,
+pub fn create_static_protocol<T: Send + Sync + 'static>(
+  app: App<T>,
 ) -> impl Fn(Request<Vec<u8>>, RequestAsyncResponder) + 'static {
   move |request, responder| {
     let app = app.read().expect("App lock is poisoned");

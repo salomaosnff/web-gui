@@ -15,19 +15,26 @@ use crate::{
   window::{AppWindowBuilder, AppWindowEvent, ApplicationWindow},
 };
 
-pub struct Application {
+pub struct Application<T> {
+  pub state: Arc<RwLock<T>>,
   pub event_loop_proxy: Arc<EventLoopProxy<AppWindowEvent>>,
   pub windows: HashMap<u32, Arc<RwLock<ApplicationWindow>>>,
   pub main_window_id: Option<u32>,
   pub static_protocol_folders: HashMap<String, PathBuf>,
   pub invoke_handlers:
-    HashMap<String, Arc<dyn Fn(App, InvokeRequest) -> InvokeResult + Send + Sync>>,
+    HashMap<String, Arc<dyn Fn(App<T>, InvokeRequest) -> InvokeResult + Send + Sync>>,
 }
 
-pub type App = Arc<RwLock<Application>>;
+pub type App<T> = Arc<RwLock<Application<T>>>;
 
-impl Application {
-  pub fn new(event_loop: &EventLoop<AppWindowEvent>) -> App {
+impl Application<()> {
+  pub fn new(event_loop: &EventLoop<AppWindowEvent>) -> App<()> {
+    Application::new_with_state(event_loop, ())
+  }
+}
+
+impl<T> Application<T> {
+  pub fn new_with_state(event_loop: &EventLoop<AppWindowEvent>, state: T) -> App<T> {
     let event_loop_proxy = event_loop.create_proxy();
     let mut static_protocol_folders = HashMap::new();
 
@@ -39,13 +46,14 @@ impl Application {
       invoke_handlers: HashMap::new(),
       main_window_id: None,
       static_protocol_folders,
+      state: Arc::new(RwLock::new(state)),
     }))
   }
 }
 
-pub trait ApplicationExt {
+pub trait ApplicationExt<T> {
   fn emit(&self, name: &str, payload: serde_json::Value);
-  fn build_window(&self) -> AppWindowBuilder;
+  fn build_window(&self) -> AppWindowBuilder<T>;
   fn invoke(&self, invoke_request: InvokeRequest) -> InvokeResult;
   fn handle_event(
     &self,
@@ -55,10 +63,10 @@ pub trait ApplicationExt {
   );
   fn add_invoke_handler<F>(&self, method: &str, handler: F)
   where
-    F: Fn(App, InvokeRequest) -> InvokeResult + Send + Sync + 'static;
+    F: Fn(App<T>, InvokeRequest) -> InvokeResult + Send + Sync + 'static;
 }
 
-impl ApplicationExt for App {
+impl<T: Send + Sync + 'static> ApplicationExt<T> for App<T> {
   fn emit(&self, name: &str, payload: serde_json::Value) {
     let app = self.read().expect("App lock is poisoned");
 
@@ -67,7 +75,7 @@ impl ApplicationExt for App {
       window.emit(name, payload.clone());
     }
   }
-  fn build_window(&self) -> AppWindowBuilder {
+  fn build_window(&self) -> AppWindowBuilder<T> {
     AppWindowBuilder::new(self.clone())
       .with_protocol("assets", create_static_protocol(self.clone()))
       .with_protocol("ipc", create_ipc_protocol(self.clone()))
@@ -88,7 +96,7 @@ impl ApplicationExt for App {
 
   fn add_invoke_handler<F>(&self, method: &str, handler: F)
   where
-    F: Fn(App, InvokeRequest) -> InvokeResult + Send + Sync + 'static,
+    F: Fn(App<T>, InvokeRequest) -> InvokeResult + Send + Sync + 'static,
   {
     let mut app = self.write().expect("App lock is poisoned");
 

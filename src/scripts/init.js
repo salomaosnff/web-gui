@@ -36,11 +36,11 @@ window.__ = (() => {
       },
       body: JSON.stringify(params)
     }).then((res) => res.json()).then(json => {
-      if (json.Err) {
+      if ('Err' in json) {
         throw new Error(json.Err);
       }
 
-      if (json.Ok) {
+      if ('Ok' in json) {
         return json.Ok;
       }
 
@@ -60,11 +60,11 @@ window.__ = (() => {
 
     const json = JSON.parse(xhr.responseText);
 
-    if (json.Err) {
+    if ('Err' in json) {
       throw new Error(json.Err);
     }
 
-    if (json.Ok) {
+    if ('Ok' in json) {
       return json.Ok;
     }
   }

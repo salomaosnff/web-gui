@@ -10,7 +10,7 @@ use crate::{
 
 pub struct InvokeRequest {
   pub method: String,
-  pub params: Vec<serde_json::Value>,
+  pub args: Vec<serde_json::Value>,
   pub window: Arc<RwLock<ApplicationWindow>>,
 }
 
@@ -30,7 +30,9 @@ impl InvokeResult {
   }
 }
 
-pub fn create_ipc_protocol(app: App) -> impl Fn(Request<Vec<u8>>, RequestAsyncResponder) + 'static {
+pub fn create_ipc_protocol<T: Send + Sync + 'static>(
+  app: App<T>,
+) -> impl Fn(Request<Vec<u8>>, RequestAsyncResponder) + 'static {
   move |request, responder| {
     let app = app.clone();
 
@@ -64,7 +66,7 @@ pub fn create_ipc_protocol(app: App) -> impl Fn(Request<Vec<u8>>, RequestAsyncRe
         Ok(args) => {
           let response = app.invoke(InvokeRequest {
             method,
-            params: args,
+            args,
             window: app
               .read()
               .expect("App lock is poisoned")
@@ -75,7 +77,7 @@ pub fn create_ipc_protocol(app: App) -> impl Fn(Request<Vec<u8>>, RequestAsyncRe
           });
           responder.respond(
             builder
-              .status(if response.is_ok() { 200 } else { 400 })
+              .status(200)
               .body::<Vec<u8>>(json!(response).to_string().into_bytes())
               .unwrap(),
           );

@@ -1,10 +1,7 @@
-use std::{sync::Arc, thread};
-
 use app::ApplicationExt;
 use invoke::InvokeResult;
-use resources::create_static_protocol;
-use tao::event_loop::{self, ControlFlow};
-use window::{AppWindowBuilder, AppWindowEvent};
+use serde_json::json;
+use window::AppWindowEvent;
 
 mod app;
 mod invoke;
@@ -13,13 +10,56 @@ mod window;
 
 #[tokio::main]
 async fn main() {
-  let event_loop = event_loop::EventLoopBuilder::<AppWindowEvent>::with_user_event().build();
+  let event_loop = tao::event_loop::EventLoopBuilder::<AppWindowEvent>::with_user_event().build();
   let app = app::Application::new(&event_loop);
 
-  app.add_invoke_handler("echo", |app, command| {
-    thread::sleep(std::time::Duration::from_secs(5));
-    let message = command.params.first().unwrap().clone();
+  app.add_invoke_handler("echo", |_app, command| {
+    let message = command.args.first().unwrap().clone();
     InvokeResult::Ok(message)
+  });
+
+  app.add_invoke_handler("env.get", |_app, command| {
+    if let Some(key) = command.args.first() {
+      if let Ok(value) = std::env::var(key.as_str().unwrap()) {
+        return InvokeResult::Ok(value.into());
+      }
+
+      return InvokeResult::Err("Variable not found".to_string());
+    }
+
+    InvokeResult::Err("Invalid key".to_string())
+  });
+
+  app.add_invoke_handler("fs.read", |_app, command| {
+    if let Some(path) = command.args.first() {
+      if let Ok(content) = std::fs::read_to_string(path.as_str().unwrap()) {
+        return InvokeResult::Ok(content.into());
+      }
+
+      return InvokeResult::Err("File not found".to_string());
+    }
+
+    InvokeResult::Err("Invalid path".to_string())
+  });
+
+  app.add_invoke_handler("shell.execSync", |_app, command| {
+    let args = command.args.iter();
+    let bin = if let Some(bin) = args.clone().next() {
+      bin.as_str().unwrap()
+    } else {
+      return InvokeResult::Err("Invalid command".to_string());
+    };
+
+    let args = args.map(|arg| arg.as_str().unwrap()).collect::<Vec<&str>>();
+
+    if let Ok(output) = std::process::Command::new(bin).args(args).output() {
+      let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+      let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+      return InvokeResult::Ok(json!({ "stdout": stdout, "stderr": stderr }));
+    }
+
+    InvokeResult::Err("Command failed".to_string())
   });
 
   app
