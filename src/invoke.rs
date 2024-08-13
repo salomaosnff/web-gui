@@ -1,17 +1,15 @@
-use std::sync::{Arc, RwLock};
-
 use serde_json::json;
 use wry::{http::Request, RequestAsyncResponder};
 
 use crate::{
   app::{App, ApplicationExt},
-  window::ApplicationWindow,
+  window::AppWindow,
 };
 
-pub struct InvokeRequest {
+pub struct InvokeRequest<T> {
   pub method: String,
   pub args: Vec<serde_json::Value>,
-  pub window: Arc<RwLock<ApplicationWindow>>,
+  pub window: AppWindow<T>,
 }
 
 #[derive(serde::Serialize)]

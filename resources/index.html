@@ -7,6 +7,16 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Hello World</h1>
+  <h1>/proc/stat</h1>
+
+  <pre id="content"></pre>
+
+  <script>
+    const content = document.getElementById('content')
+    
+    window.__.on('cpu-usage', data => {
+      content.innerText = data;
+    })
+  </script>
 </body>
 </html>

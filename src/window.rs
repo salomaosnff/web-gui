@@ -1,13 +1,14 @@
 use std::{
   collections::HashMap,
-  sync::{Arc, RwLock},
+  sync::{Arc, RwLock, Weak},
 };
 
-use tao::{event::Event, event_loop::EventLoop, window::WindowId};
+use tao::{event::Event, event_loop::EventLoop, rwh_06::HasWindowHandle, window::WindowId};
 use wry::{http::Request, RequestAsyncResponder};
 
 use crate::app::App;
 
+#[derive(Debug)]
 pub enum AppWindowEvent {
   Event {
     name: String,
@@ -36,52 +37,90 @@ impl Into<AppWindowEvent> for Event<'_, AppWindowEvent> {
   }
 }
 
-pub struct ApplicationWindow {
+pub struct ApplicationWindow<T> {
+  app: App<T>,
   tao_window: Arc<tao::window::Window>,
   wry_webview: wry::WebView,
 }
 
-unsafe impl Send for ApplicationWindow {}
-unsafe impl Sync for ApplicationWindow {}
+unsafe impl<T> Send for ApplicationWindow<T> {}
+unsafe impl<T> Sync for ApplicationWindow<T> {}
 
-pub type AppWindow = Arc<ApplicationWindow>;
+pub type AppWindow<T> = Arc<RwLock<ApplicationWindow<T>>>;
 
-impl ApplicationWindow {
+impl ApplicationWindow<()> {
   pub fn window_id_to_u32(window_id: WindowId) -> u32 {
     let id = &format!("{:?}", window_id)[18..];
     let id = id.trim_end_matches(")");
     id.parse().expect("Failed to parse window id")
   }
+}
 
-  pub fn id(&self) -> u32 {
-    Self::window_id_to_u32(self.tao_window.id())
+pub trait AppWindowExt {
+  fn id(&self) -> u32;
+  fn set_title(&self, title: &str);
+  fn show(&self);
+  fn hide(&self);
+  fn eval(&self, script: &str);
+  fn emit(&self, event: &str, payload: serde_json::Value);
+}
+
+impl<T> AppWindowExt for AppWindow<T> {
+  fn id(&self) -> u32 {
+    ApplicationWindow::window_id_to_u32(
+      self
+        .read()
+        .expect("Window lock is poisoned")
+        .tao_window
+        .id(),
+    )
   }
 
-  pub fn set_title(&self, title: &str) {
-    self.tao_window.set_title(title);
+  fn set_title(&self, title: &str) {
+    self
+      .read()
+      .expect("Window lock is poisoned")
+      .tao_window
+      .set_title(title);
   }
 
-  pub fn show(&self) {
-    self.tao_window.set_visible(true);
+  fn show(&self) {
+    self
+      .read()
+      .expect("Window lock is poisoned")
+      .tao_window
+      .set_visible(true);
   }
 
-  pub fn hide(&self) {
-    self.tao_window.set_visible(false);
+  fn hide(&self) {
+    self
+      .read()
+      .expect("Window lock is poisoned")
+      .tao_window
+      .set_visible(false);
   }
 
-  pub fn eval(&self, script: &str) {
-    self.wry_webview.evaluate_script(script).unwrap();
+  fn eval(&self, script: &str) {
+    self
+      .read()
+      .expect("Window lock is poisoned")
+      .wry_webview
+      .evaluate_script(script)
+      .expect("Failed to evaluate script");
   }
 
-  pub fn emit(&self, event: &str, payload: serde_json::Value) {
-    self.eval(
-      format!(
-        "window.__.dispatch({}, {});",
-        serde_json::to_string(event).unwrap(),
-        serde_json::to_string(&payload).unwrap()
-      )
-      .as_str(),
-    );
+  fn emit(&self, event: &str, payload: serde_json::Value) {
+    let window = self.read().expect("Window lock is poisoned");
+    let app = window.app.read().expect("App lock is poisoned");
+
+    app
+      .event_loop_proxy
+      .send_event(AppWindowEvent::Event {
+        name: event.to_string(),
+        payload,
+        target: vec![self.id()],
+      })
+      .expect("Failed to send event");
   }
 }
 
@@ -97,7 +136,13 @@ pub struct AppWindowBuilder<T> {
 
 impl<T> AppWindowBuilder<T> {
   pub fn new(app: App<T>) -> Self {
-    let tao_window_builder = tao::window::WindowBuilder::new();
+    let tao_window_builder = tao::window::WindowBuilder::new().with_window_icon({
+      let icon = include_bytes!("../resources/icon.png");
+      let icon = image::load_from_memory(icon).expect("Failed to load icon");
+      let icon = icon.to_rgba8();
+      let (width, height) = icon.dimensions();
+      tao::window::Icon::from_rgba(icon.into_raw(), width, height).ok()
+    });
 
     Self {
       is_main: false,
@@ -141,7 +186,7 @@ impl<T> AppWindowBuilder<T> {
     self
   }
 
-  pub fn build(self, event_loop: &EventLoop<AppWindowEvent>) -> Arc<RwLock<ApplicationWindow>> {
+  pub fn build(self, event_loop: &EventLoop<AppWindowEvent>) -> AppWindow<T> {
     let tao_window = Arc::new(
       self
         .tao_window_builder
@@ -198,10 +243,11 @@ impl<T> AppWindowBuilder<T> {
     let window = Arc::new(RwLock::new(ApplicationWindow {
       tao_window: tao_window.clone(),
       wry_webview,
+      app: self.app.clone(),
     }));
 
     let mut app = self.app.write().expect("App lock is poisoned");
-    let window_id = window.read().expect("Window lock is poisoned").id();
+    let window_id = window.id();
 
     app.windows.insert(window_id, window.clone());
 

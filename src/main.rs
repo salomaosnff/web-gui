@@ -1,7 +1,9 @@
+use std::os;
+
 use app::ApplicationExt;
 use invoke::InvokeResult;
 use serde_json::json;
-use window::AppWindowEvent;
+use window::{AppWindowEvent, AppWindowExt};
 
 mod app;
 mod invoke;
@@ -62,18 +64,24 @@ async fn main() {
     InvokeResult::Err("Command failed".to_string())
   });
 
-  app
+  let window = app
     .build_window()
     .main()
     .with_title("Hello World!")
     .with_url("assets://app")
     .build(&event_loop);
 
-  app
-    .build_window()
-    .with_title("Google")
-    .with_url("https://google.com")
-    .build(&event_loop);
+  tokio::task::spawn(async move {
+    let window = window.clone();
+
+    loop {
+      let stat = std::fs::read_to_string("/proc/stat").expect("Failed to read /proc/stat");
+
+      window.emit("cpu-usage", json!(stat));
+
+      tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
+  });
 
   event_loop.run(move |event, event_loop, control_flow| {
     app.handle_event(event, event_loop, control_flow);

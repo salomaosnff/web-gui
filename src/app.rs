@@ -12,17 +12,17 @@ use tao::{
 use crate::{
   invoke::{create_ipc_protocol, InvokeRequest, InvokeResult},
   resources::create_static_protocol,
-  window::{AppWindowBuilder, AppWindowEvent, ApplicationWindow},
+  window::{AppWindow, AppWindowBuilder, AppWindowEvent, AppWindowExt, ApplicationWindow},
 };
 
 pub struct Application<T> {
   pub state: Arc<RwLock<T>>,
   pub event_loop_proxy: Arc<EventLoopProxy<AppWindowEvent>>,
-  pub windows: HashMap<u32, Arc<RwLock<ApplicationWindow>>>,
+  pub windows: HashMap<u32, AppWindow<T>>,
   pub main_window_id: Option<u32>,
   pub static_protocol_folders: HashMap<String, PathBuf>,
   pub invoke_handlers:
-    HashMap<String, Arc<dyn Fn(App<T>, InvokeRequest) -> InvokeResult + Send + Sync>>,
+    HashMap<String, Arc<dyn Fn(App<T>, InvokeRequest<T>) -> InvokeResult + Send + Sync>>,
 }
 
 pub type App<T> = Arc<RwLock<Application<T>>>;
@@ -54,7 +54,7 @@ impl<T> Application<T> {
 pub trait ApplicationExt<T> {
   fn emit(&self, name: &str, payload: serde_json::Value);
   fn build_window(&self) -> AppWindowBuilder<T>;
-  fn invoke(&self, invoke_request: InvokeRequest) -> InvokeResult;
+  fn invoke(&self, invoke_request: InvokeRequest<T>) -> InvokeResult;
   fn handle_event(
     &self,
     event: Event<'_, AppWindowEvent>,
@@ -63,17 +63,22 @@ pub trait ApplicationExt<T> {
   );
   fn add_invoke_handler<F>(&self, method: &str, handler: F)
   where
-    F: Fn(App<T>, InvokeRequest) -> InvokeResult + Send + Sync + 'static;
+    F: Fn(App<T>, InvokeRequest<T>) -> InvokeResult + Send + Sync + 'static;
 }
 
 impl<T: Send + Sync + 'static> ApplicationExt<T> for App<T> {
   fn emit(&self, name: &str, payload: serde_json::Value) {
     let app = self.read().expect("App lock is poisoned");
+    let targets: Vec<u32> = app.windows.keys().cloned().collect();
 
-    for window in app.windows.values() {
-      let window = window.read().expect("Window lock is poisoned");
-      window.emit(name, payload.clone());
-    }
+    app
+      .event_loop_proxy
+      .send_event(AppWindowEvent::Event {
+        name: name.to_string(),
+        payload,
+        target: targets,
+      })
+      .expect("Failed to send event");
   }
   fn build_window(&self) -> AppWindowBuilder<T> {
     AppWindowBuilder::new(self.clone())
@@ -81,7 +86,7 @@ impl<T: Send + Sync + 'static> ApplicationExt<T> for App<T> {
       .with_protocol("ipc", create_ipc_protocol(self.clone()))
   }
 
-  fn invoke(&self, invoke_request: InvokeRequest) -> InvokeResult {
+  fn invoke(&self, invoke_request: InvokeRequest<T>) -> InvokeResult {
     let app = self.clone();
     let app_rw = app.read().expect("App lock is poisoned");
 
@@ -96,7 +101,7 @@ impl<T: Send + Sync + 'static> ApplicationExt<T> for App<T> {
 
   fn add_invoke_handler<F>(&self, method: &str, handler: F)
   where
-    F: Fn(App<T>, InvokeRequest) -> InvokeResult + Send + Sync + 'static,
+    F: Fn(App<T>, InvokeRequest<T>) -> InvokeResult + Send + Sync + 'static,
   {
     let mut app = self.write().expect("App lock is poisoned");
 
@@ -111,6 +116,7 @@ impl<T: Send + Sync + 'static> ApplicationExt<T> for App<T> {
     _event_loop: &EventLoopWindowTarget<AppWindowEvent>,
     control_flow: &mut ControlFlow,
   ) {
+    *control_flow = ControlFlow::Wait;
     match event {
       Event::WindowEvent {
         window_id, event, ..
@@ -141,8 +147,11 @@ impl<T: Send + Sync + 'static> ApplicationExt<T> for App<T> {
 
           for window_id in target {
             if let Some(window) = app.windows.get(&window_id) {
-              let window = window.read().expect("Window lock is poisoned");
-              window.emit(name.as_str(), payload.clone());
+              window.eval(&format!(
+                "window.__.dispatch({}, {});",
+                serde_json::to_string(&name).unwrap(),
+                serde_json::to_string(&payload).unwrap()
+              ));
             }
           }
         }

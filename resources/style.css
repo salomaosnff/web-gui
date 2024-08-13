@@ -10,3 +10,10 @@ html, body {
   background-color: #000;
   color: #FFF;
 }
+
+pre {
+  font-family: monospace;
+  padding: 1em;
+  overflow: auto;
+  background: #FFF1;
+}
