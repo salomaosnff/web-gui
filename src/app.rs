@@ -24,6 +24,7 @@ pub struct Application<T> {
   pub main_window_id: RwLock<Option<u32>>,
   pub static_protocol_folders: HashMap<String, PathBuf>,
   pub invoke_handlers: RwLock<HashMap<String, InvokeHandler<T>>>,
+  pub import_map: RwLock<HashMap<String, String>>,
 }
 
 pub type App<T> = Arc<Application<T>>;
@@ -48,11 +49,13 @@ impl<T> Application<T> {
       main_window_id: RwLock::new(None),
       static_protocol_folders,
       state: RwLock::new(state),
+      import_map: RwLock::new(HashMap::new()),
     })
   }
 }
 
 pub trait AppExt<T> {
+  fn add_es_module(&self, name: &str, url: &str);
   fn emit(&self, name: &str, payload: serde_json::Value);
   fn build_window(&self) -> AppWindowBuilder<T>;
   fn invoke(&self, invoke_request: InvokeRequest<T>) -> InvokeResult;
@@ -69,6 +72,13 @@ pub trait AppExt<T> {
 }
 
 impl<T: Send + Sync + 'static> AppExt<T> for App<T> {
+  fn add_es_module(&self, name: &str, url: &str) {
+    self
+      .import_map
+      .write()
+      .expect("Failed to write import map")
+      .insert(name.to_string(), url.to_string());
+  }
   fn emit(&self, name: &str, payload: serde_json::Value) {
     let targets: Vec<u32> = self
       .windows
@@ -188,4 +198,16 @@ impl<T: Send + Sync + 'static> AppExt<T> for App<T> {
       .get(&window_id)
       .cloned()
   }
+}
+
+#[macro_export]
+macro_rules! import_map {
+  ($app:expr, {$($name:expr => $url:expr$(,)?)*}) => {{
+    let app = $app.clone();
+    let mut import_map = app.import_map.write().expect("Failed to write import map");
+
+    $(
+      import_map.insert($name.to_string(), $url.to_string());
+    )*
+  }};
 }

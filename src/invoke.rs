@@ -40,6 +40,10 @@ impl InvokeResult {
   pub fn binary(data: Vec<u8>) -> Self {
     Self::Ok(InvokeResultData::Binary(data))
   }
+
+  pub fn error(message: &str) -> Self {
+    Self::Err(message.into())
+  }
 }
 
 pub fn create_ipc_protocol<T: Send + Sync + 'static>(
@@ -101,8 +105,9 @@ pub fn create_ipc_protocol<T: Send + Sync + 'static>(
               }
             }
             InvokeResult::Err(err) => builder
-              .status(400)
+              .status(200)
               .header("X-Invoke-Result", "Err")
+              .header("Content-Type", "application/json")
               .body::<Vec<u8>>(json!(InvokeResult::Err(err)).to_string().into_bytes())
               .unwrap(),
           });

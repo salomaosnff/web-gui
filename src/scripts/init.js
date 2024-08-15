@@ -95,10 +95,10 @@ window.__ = (() => {
 
     if (resultType === 'Err') {
       if (xhr.getResponseHeader('Content-Type') === 'application/json') {
-        throw new InvokeError(JSON.parse(xhr.responseText));
+        throw new InvokeError(JSON.parse(new TextDecoder().decode(new Uint8Array(xhr.response))));
       } else {
         console.warn('Error response is not JSON', xhr);
-        throw new InvokeError(xhr.responseText);
+        throw new InvokeError(new TextDecoder().decode(new Uint8Array(xhr.response)));
       }
     }
 

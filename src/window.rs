@@ -1,9 +1,9 @@
 use std::{
   collections::HashMap,
-  sync::{Arc, RwLock, Weak},
+  sync::{Arc, RwLock},
 };
 
-use tao::{event::Event, event_loop::EventLoop, rwh_06::HasWindowHandle, window::WindowId};
+use tao::{event::Event, event_loop::EventLoop, window::WindowId};
 use wry::{http::Request, RequestAsyncResponder};
 
 use crate::app::App;
@@ -41,6 +41,7 @@ pub struct ApplicationWindow<T> {
   app: App<T>,
   tao_window: Arc<tao::window::Window>,
   wry_webview: wry::WebView,
+  import_map: HashMap<String, String>,
 }
 
 unsafe impl<T> Send for ApplicationWindow<T> {}
@@ -137,6 +138,7 @@ pub struct AppWindowBuilder<T> {
   tao_window_builder: tao::window::WindowBuilder,
   url: Option<String>,
   custom_protocols: HashMap<String, Box<CustomProtocolHandler>>,
+  pub import_map: HashMap<String, String>,
 }
 
 impl<T> AppWindowBuilder<T> {
@@ -149,6 +151,7 @@ impl<T> AppWindowBuilder<T> {
       tao_window_builder,
       url: None,
       custom_protocols: HashMap::new(),
+      import_map: HashMap::new(),
     }
   }
 
@@ -175,6 +178,12 @@ impl<T> AppWindowBuilder<T> {
     self
       .custom_protocols
       .insert(schema.to_string(), Box::new(handler));
+
+    self
+  }
+
+  pub fn with_js_module(mut self, name: &str, url: &str) -> Self {
+    self.import_map.insert(name.to_string(), url.to_string());
 
     self
   }
@@ -218,6 +227,29 @@ impl<T> AppWindowBuilder<T> {
       "Object.defineProperty(window, 'ID', {{ value: {}, writable: false, enumerable: true }});",
       ApplicationWindow::window_id_to_u32(tao_window.id())
     ));
+
+    builder = builder.with_initialization_script(
+      include_str!("./scripts/modules.js")
+        .replace("get_import_map()", {
+          serde_json::to_string(&{
+            let mut import_map = self
+              .app
+              .import_map
+              .read()
+              .expect("Failed to acquire lock on import map")
+              .clone();
+
+            for (name, url) in &self.import_map {
+              import_map.insert(name.clone(), url.clone());
+            }
+
+            import_map
+          })
+          .expect("Failed to serialize import map")
+          .as_str()
+        })
+        .as_str(),
+    );
     builder = builder.with_initialization_script(include_str!("./scripts/init.js"));
 
     if let Some(url) = self.url {
@@ -243,6 +275,7 @@ impl<T> AppWindowBuilder<T> {
       tao_window: tao_window.clone(),
       wry_webview,
       app: self.app.clone(),
+      import_map: HashMap::new(),
     }));
 
     let window_id = window.id();
