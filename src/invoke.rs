@@ -81,13 +81,7 @@ pub fn create_ipc_protocol<T: Send + Sync + 'static>(
           let response = app.invoke(InvokeRequest {
             method,
             args,
-            window: app
-              .windows
-              .read()
-              .expect("Failed to acquire lock on windows")
-              .get(&window_id)
-              .unwrap()
-              .clone(),
+            window: app.get_window(window_id).unwrap().clone(),
           });
 
           responder.respond(match response {

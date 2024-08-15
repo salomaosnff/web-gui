@@ -56,6 +56,7 @@ impl<T> Application<T> {
 
 pub trait AppExt<T> {
   fn add_es_module(&self, name: &str, url: &str);
+  fn remove_invoke_handler(&self, method: &str);
   fn emit(&self, name: &str, payload: serde_json::Value);
   fn build_window(&self) -> AppWindowBuilder<T>;
   fn invoke(&self, invoke_request: InvokeRequest<T>) -> InvokeResult;
@@ -131,6 +132,14 @@ impl<T: Send + Sync + 'static> AppExt<T> for App<T> {
       .insert(method.to_string(), Arc::new(handler));
   }
 
+  fn remove_invoke_handler(&self, method: &str) {
+    self
+      .invoke_handlers
+      .write()
+      .expect("Invoke handlers lock is poisoned")
+      .remove(method);
+  }
+
   fn handle_event(
     &self,
     event: Event<'_, AppWindowEvent>,
@@ -140,52 +149,43 @@ impl<T: Send + Sync + 'static> AppExt<T> for App<T> {
     *control_flow = ControlFlow::Wait;
     match event {
       Event::WindowEvent {
-        window_id, event, ..
-      } => match event {
-        tao::event::WindowEvent::CloseRequested => {
-          let window_id = ApplicationWindow::window_id_to_u32(window_id);
-          let mut windows = self
-            .windows
-            .write()
-            .expect("Failed to acquire lock on windows");
+        window_id,
+        event: tao::event::WindowEvent::CloseRequested,
+        ..
+      } => {
+        let window_id = ApplicationWindow::window_id_to_u32(window_id);
+        let mut windows = self
+          .windows
+          .write()
+          .expect("Failed to acquire lock on windows");
 
-          if *self.main_window_id.read().expect(
-            "Failed to acquire lock on main window id. This should never happen as the lock is poisoned",
-          ) == Some(window_id) {
-            windows.clear();
-          } else {
-            windows.remove(&window_id);
-          }
+        if *self.main_window_id.read().expect(
+        "Failed to acquire lock on main window id. This should never happen as the lock is poisoned",
+      ) == Some(window_id) {
+        windows.clear();
+      } else {
+        windows.remove(&window_id);
+      }
 
-          if windows.is_empty() {
-            *control_flow = ControlFlow::Exit;
+        if windows.is_empty() {
+          *control_flow = ControlFlow::Exit;
+        }
+      }
+      Event::UserEvent(AppWindowEvent::Event {
+        name,
+        payload,
+        target,
+      }) => {
+        for window_id in target {
+          if let Some(window) = self.get_window(window_id) {
+            window.eval(&format!(
+              "window.__.dispatch({}, {});",
+              serde_json::to_string(&name).unwrap(),
+              serde_json::to_string(&payload).unwrap()
+            ));
           }
         }
-        _ => (),
-      },
-      Event::UserEvent(event) => match event {
-        AppWindowEvent::Event {
-          name,
-          payload,
-          target,
-        } => {
-          let windows = self
-            .windows
-            .read()
-            .expect("Failed to acquire lock on windows");
-
-          for window_id in target {
-            if let Some(window) = windows.get(&window_id) {
-              window.eval(&format!(
-                "window.__.dispatch({}, {});",
-                serde_json::to_string(&name).unwrap(),
-                serde_json::to_string(&payload).unwrap()
-              ));
-            }
-          }
-        }
-        _ => {}
-      },
+      }
       _ => {}
     }
   }
