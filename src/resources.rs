@@ -9,7 +9,6 @@ pub fn create_static_protocol<T: Send + Sync + 'static>(
   app: App<T>,
 ) -> impl Fn(Request<Vec<u8>>, RequestAsyncResponder) + 'static {
   move |request, responder| {
-    let app = app.read().expect("App lock is poisoned");
     let builder = wry::http::response::Builder::new().header("Access-Control-Allow-Origin", "*");
     let uri = request.uri();
     let host = if let Some(host) = uri.host() {

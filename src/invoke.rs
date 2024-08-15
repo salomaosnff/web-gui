@@ -2,7 +2,7 @@ use serde_json::json;
 use wry::{http::Request, RequestAsyncResponder};
 
 use crate::{
-  app::{App, ApplicationExt},
+  app::{App, AppExt},
   window::AppWindow,
 };
 
@@ -13,8 +13,14 @@ pub struct InvokeRequest<T> {
 }
 
 #[derive(serde::Serialize)]
+pub enum InvokeResultData {
+  JSON(serde_json::Value),
+  Binary(Vec<u8>),
+}
+
+#[derive(serde::Serialize)]
 pub enum InvokeResult {
-  Ok(serde_json::Value),
+  Ok(InvokeResultData),
   Err(String),
 }
 
@@ -25,6 +31,14 @@ impl InvokeResult {
 
   pub fn is_err(&self) -> bool {
     !self.is_ok()
+  }
+
+  pub fn json(data: serde_json::Value) -> Self {
+    Self::Ok(InvokeResultData::JSON(data))
+  }
+
+  pub fn binary(data: Vec<u8>) -> Self {
+    Self::Ok(InvokeResultData::Binary(data))
   }
 }
 
@@ -47,9 +61,7 @@ pub fn create_ipc_protocol<T: Send + Sync + 'static>(
       }
 
       let method = request.uri().path().trim_start_matches('/').to_string();
-      let builder = wry::http::response::Builder::new()
-        .header("Access-Control-Allow-Origin", "*")
-        .header("Content-Type", "application/json");
+      let builder = wry::http::response::Builder::new().header("Access-Control-Allow-Origin", "*");
 
       let window_id: u32 = request
         .headers()
@@ -66,19 +78,34 @@ pub fn create_ipc_protocol<T: Send + Sync + 'static>(
             method,
             args,
             window: app
-              .read()
-              .expect("App lock is poisoned")
               .windows
+              .read()
+              .expect("Failed to acquire lock on windows")
               .get(&window_id)
               .unwrap()
               .clone(),
           });
-          responder.respond(
-            builder
-              .status(200)
-              .body::<Vec<u8>>(json!(response).to_string().into_bytes())
+
+          responder.respond(match response {
+            InvokeResult::Ok(data) => {
+              let builder = builder.header("X-Invoke-Result", "Ok");
+              match data {
+                InvokeResultData::JSON(data) => builder
+                  .header("Content-Type", "application/json")
+                  .body(data.to_string().into_bytes())
+                  .unwrap(),
+                InvokeResultData::Binary(value) => builder
+                  .header("Content-Type", "application/octet-stream")
+                  .body(value)
+                  .unwrap(),
+              }
+            }
+            InvokeResult::Err(err) => builder
+              .status(400)
+              .header("X-Invoke-Result", "Err")
+              .body::<Vec<u8>>(json!(InvokeResult::Err(err)).to_string().into_bytes())
               .unwrap(),
-          );
+          });
         }
         Err(err) => {
           responder.respond(

@@ -56,16 +56,17 @@ impl ApplicationWindow<()> {
   }
 }
 
-pub trait AppWindowExt {
+pub trait AppWindowExt<T> {
   fn id(&self) -> u32;
   fn set_title(&self, title: &str);
   fn show(&self);
   fn hide(&self);
   fn eval(&self, script: &str);
   fn emit(&self, event: &str, payload: serde_json::Value);
+  fn app(&self) -> App<T>;
 }
 
-impl<T> AppWindowExt for AppWindow<T> {
+impl<T> AppWindowExt<T> for AppWindow<T> {
   fn id(&self) -> u32 {
     ApplicationWindow::window_id_to_u32(
       self
@@ -110,10 +111,10 @@ impl<T> AppWindowExt for AppWindow<T> {
   }
 
   fn emit(&self, event: &str, payload: serde_json::Value) {
-    let window = self.read().expect("Window lock is poisoned");
-    let app = window.app.read().expect("App lock is poisoned");
-
-    app
+    self
+      .read()
+      .expect("Window lock is poisoned")
+      .app
       .event_loop_proxy
       .send_event(AppWindowEvent::Event {
         name: event.to_string(),
@@ -121,6 +122,10 @@ impl<T> AppWindowExt for AppWindow<T> {
         target: vec![self.id()],
       })
       .expect("Failed to send event");
+  }
+
+  fn app(&self) -> App<T> {
+    self.read().expect("Window lock is poisoned").app.clone()
   }
 }
 
@@ -136,13 +141,7 @@ pub struct AppWindowBuilder<T> {
 
 impl<T> AppWindowBuilder<T> {
   pub fn new(app: App<T>) -> Self {
-    let tao_window_builder = tao::window::WindowBuilder::new().with_window_icon({
-      let icon = include_bytes!("../resources/icon.png");
-      let icon = image::load_from_memory(icon).expect("Failed to load icon");
-      let icon = icon.to_rgba8();
-      let (width, height) = icon.dimensions();
-      tao::window::Icon::from_rgba(icon.into_raw(), width, height).ok()
-    });
+    let tao_window_builder = tao::window::WindowBuilder::new();
 
     Self {
       is_main: false,
@@ -246,13 +245,22 @@ impl<T> AppWindowBuilder<T> {
       app: self.app.clone(),
     }));
 
-    let mut app = self.app.write().expect("App lock is poisoned");
     let window_id = window.id();
 
-    app.windows.insert(window_id, window.clone());
+    self
+      .app
+      .windows
+      .write()
+      .expect("Failed to acquire lock on windows")
+      .insert(window_id, window.clone());
 
     if self.is_main {
-      app.main_window_id = Some(window_id);
+      self
+        .app
+        .main_window_id
+        .write()
+        .expect("Failed to acquire lock on main window id")
+        .replace(window_id);
     }
 
     window

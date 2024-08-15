@@ -15,17 +15,18 @@ use crate::{
   window::{AppWindow, AppWindowBuilder, AppWindowEvent, AppWindowExt, ApplicationWindow},
 };
 
+pub type InvokeHandler<T> = Arc<dyn Fn(App<T>, InvokeRequest<T>) -> InvokeResult + Send + Sync>;
+
 pub struct Application<T> {
-  pub state: Arc<RwLock<T>>,
+  pub state: RwLock<T>,
   pub event_loop_proxy: Arc<EventLoopProxy<AppWindowEvent>>,
-  pub windows: HashMap<u32, AppWindow<T>>,
-  pub main_window_id: Option<u32>,
+  pub windows: RwLock<HashMap<u32, AppWindow<T>>>,
+  pub main_window_id: RwLock<Option<u32>>,
   pub static_protocol_folders: HashMap<String, PathBuf>,
-  pub invoke_handlers:
-    HashMap<String, Arc<dyn Fn(App<T>, InvokeRequest<T>) -> InvokeResult + Send + Sync>>,
+  pub invoke_handlers: RwLock<HashMap<String, InvokeHandler<T>>>,
 }
 
-pub type App<T> = Arc<RwLock<Application<T>>>;
+pub type App<T> = Arc<Application<T>>;
 
 impl Application<()> {
   pub fn new(event_loop: &EventLoop<AppWindowEvent>) -> App<()> {
@@ -40,18 +41,18 @@ impl<T> Application<T> {
 
     static_protocol_folders.insert("app".to_string(), PathBuf::from("resources"));
 
-    Arc::new(RwLock::new(Self {
+    Arc::new(Self {
       event_loop_proxy: Arc::new(event_loop_proxy),
-      windows: HashMap::new(),
-      invoke_handlers: HashMap::new(),
-      main_window_id: None,
+      windows: RwLock::new(HashMap::new()),
+      invoke_handlers: RwLock::new(HashMap::new()),
+      main_window_id: RwLock::new(None),
       static_protocol_folders,
-      state: Arc::new(RwLock::new(state)),
-    }))
+      state: RwLock::new(state),
+    })
   }
 }
 
-pub trait ApplicationExt<T> {
+pub trait AppExt<T> {
   fn emit(&self, name: &str, payload: serde_json::Value);
   fn build_window(&self) -> AppWindowBuilder<T>;
   fn invoke(&self, invoke_request: InvokeRequest<T>) -> InvokeResult;
@@ -61,17 +62,23 @@ pub trait ApplicationExt<T> {
     event_loop: &EventLoopWindowTarget<AppWindowEvent>,
     control_flow: &mut ControlFlow,
   );
+  fn get_window(&self, window_id: u32) -> Option<AppWindow<T>>;
   fn add_invoke_handler<F>(&self, method: &str, handler: F)
   where
     F: Fn(App<T>, InvokeRequest<T>) -> InvokeResult + Send + Sync + 'static;
 }
 
-impl<T: Send + Sync + 'static> ApplicationExt<T> for App<T> {
+impl<T: Send + Sync + 'static> AppExt<T> for App<T> {
   fn emit(&self, name: &str, payload: serde_json::Value) {
-    let app = self.read().expect("App lock is poisoned");
-    let targets: Vec<u32> = app.windows.keys().cloned().collect();
+    let targets: Vec<u32> = self
+      .windows
+      .read()
+      .expect("Failed to acquire lock on windows. This should never happen as the lock is poisoned")
+      .keys()
+      .cloned()
+      .collect();
 
-    app
+    self
       .event_loop_proxy
       .send_event(AppWindowEvent::Event {
         name: name.to_string(),
@@ -88,11 +95,15 @@ impl<T: Send + Sync + 'static> ApplicationExt<T> for App<T> {
 
   fn invoke(&self, invoke_request: InvokeRequest<T>) -> InvokeResult {
     let app = self.clone();
-    let app_rw = app.read().expect("App lock is poisoned");
 
     let method = invoke_request.method.clone();
 
-    if let Some(handler) = app_rw.invoke_handlers.get(&method) {
+    if let Some(handler) = self
+      .invoke_handlers
+      .read()
+      .expect("Invoke handlers lock is poisoned")
+      .get(&method)
+    {
       handler(app.clone(), invoke_request)
     } else {
       InvokeResult::Err("Method not found".to_string())
@@ -103,10 +114,10 @@ impl<T: Send + Sync + 'static> ApplicationExt<T> for App<T> {
   where
     F: Fn(App<T>, InvokeRequest<T>) -> InvokeResult + Send + Sync + 'static,
   {
-    let mut app = self.write().expect("App lock is poisoned");
-
-    app
+    self
       .invoke_handlers
+      .write()
+      .expect("Invoke handlers lock is poisoned")
       .insert(method.to_string(), Arc::new(handler));
   }
 
@@ -123,15 +134,20 @@ impl<T: Send + Sync + 'static> ApplicationExt<T> for App<T> {
       } => match event {
         tao::event::WindowEvent::CloseRequested => {
           let window_id = ApplicationWindow::window_id_to_u32(window_id);
-          let mut app = self.write().expect("App lock is poisoned");
+          let mut windows = self
+            .windows
+            .write()
+            .expect("Failed to acquire lock on windows");
 
-          if app.main_window_id == Some(window_id) {
-            app.windows.clear();
+          if *self.main_window_id.read().expect(
+            "Failed to acquire lock on main window id. This should never happen as the lock is poisoned",
+          ) == Some(window_id) {
+            windows.clear();
           } else {
-            app.windows.remove(&window_id);
+            windows.remove(&window_id);
           }
 
-          if app.windows.is_empty() {
+          if windows.is_empty() {
             *control_flow = ControlFlow::Exit;
           }
         }
@@ -143,10 +159,13 @@ impl<T: Send + Sync + 'static> ApplicationExt<T> for App<T> {
           payload,
           target,
         } => {
-          let app = self.read().expect("App lock is poisoned");
+          let windows = self
+            .windows
+            .read()
+            .expect("Failed to acquire lock on windows");
 
           for window_id in target {
-            if let Some(window) = app.windows.get(&window_id) {
+            if let Some(window) = windows.get(&window_id) {
               window.eval(&format!(
                 "window.__.dispatch({}, {});",
                 serde_json::to_string(&name).unwrap(),
@@ -159,5 +178,14 @@ impl<T: Send + Sync + 'static> ApplicationExt<T> for App<T> {
       },
       _ => {}
     }
+  }
+
+  fn get_window(&self, window_id: u32) -> Option<AppWindow<T>> {
+    self
+      .windows
+      .read()
+      .expect("Failed to acquire lock on windows")
+      .get(&window_id)
+      .cloned()
   }
 }
