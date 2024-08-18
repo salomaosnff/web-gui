@@ -246,41 +246,41 @@ impl AppWindowBuilder {
     self
   }
 
-  pub fn with_label(mut self, label: &str) -> Self {
-    self.labels.insert(label.to_string());
+  pub fn with_label(mut self, label: impl Into<String>) -> Self {
+    self.labels.insert(label.into());
 
     self
   }
 
-  pub fn with_title(mut self, title: &str) -> Self {
-    self.tao_window_builder = self.tao_window_builder.with_title(title);
+  pub fn with_title(mut self, title: impl Into<String>) -> Self {
+    self.tao_window_builder = self.tao_window_builder.with_title(title.into());
 
     self
   }
 
-  pub fn with_url(mut self, url: &str) -> Self {
-    self.url = Some(url.to_string());
+  pub fn with_url(mut self, url: impl Into<String>) -> Self {
+    self.url = Some(url.into());
 
     self
   }
 
-  pub fn with_html(self, html: &str) -> Self {
-    self.with_url(&format!("data:text/html,{}", html))
+  pub fn with_html(self, html: impl Into<String>) -> Self {
+    self.with_url(&format!("data:text/html,{}", html.into()))
   }
 
-  pub fn with_protocol<H>(mut self, schema: &str, handler: H) -> Self
+  pub fn with_protocol<H>(mut self, schema: impl Into<String>, handler: H) -> Self
   where
     H: Fn(Request<Vec<u8>>, RequestAsyncResponder) + 'static,
   {
     self
       .custom_protocols
-      .insert(schema.to_string(), Box::new(handler));
+      .insert(schema.into(), Box::new(handler));
 
     self
   }
 
-  pub fn with_js_module(mut self, name: &str, url: &str) -> Self {
-    self.import_map.insert(name.to_string(), url.to_string());
+  pub fn with_js_module(mut self, name: impl Into<String>, url: impl Into<String>) -> Self {
+    self.import_map.insert(name.into(), url.into());
 
     self
   }

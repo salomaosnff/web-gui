@@ -20,7 +20,7 @@ async fn main() {
     .main()
     .with_visible(false)
     .with_title("Lenz")
-    .with_url("lenz://app")
+    .with_url(std::env::var("LENZ_URL").unwrap_or_else(|_| "lenz://app/index.html".to_owned()))
     .with_devtools()
     .at_center()
     .build(&event_loop);
