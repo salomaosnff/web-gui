@@ -1,7 +1,9 @@
 use crate::{
-  app::{App, AppExt},
+  app::{
+    invoke::{InvokeCommand, InvokeResult},
+    App, AppExt,
+  },
   async_invoke_handlers,
-  invoke::{InvokeCommand, InvokeResult},
 };
 use std::io::Write;
 

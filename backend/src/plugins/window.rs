@@ -1,8 +1,10 @@
 use crate::{
-  app::{App, AppExt},
+  app::{
+    invoke::{InvokeCommand, InvokeResult},
+    window::AppWindowExt,
+    App, AppExt,
+  },
   async_invoke_handlers,
-  invoke::{InvokeCommand, InvokeResult},
-  window::AppWindowExt,
 };
 
 async fn window_emit_label(command: InvokeCommand) -> InvokeResult {

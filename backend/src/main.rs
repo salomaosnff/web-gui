@@ -1,14 +1,12 @@
-use app::AppExt;
+use app::{
+  window::{AppWindowEvent, AppWindowExt},
+  AppExt,
+};
 use serde_json::json;
-use window::{AppWindowEvent, AppWindowExt};
 
 mod app;
-mod app_paths;
-mod invoke;
 mod plugins;
-mod resources;
 mod state;
-mod window;
 
 #[tokio::main]
 async fn main() {

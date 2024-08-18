@@ -4,18 +4,20 @@ use std::{
   sync::{Arc, RwLock},
 };
 
+use invoke::{create_ipc_protocol, InvokeCommand, InvokeHandler, InvokeResponder, InvokeResult};
+use resources::create_static_protocol;
 use tao::{
   event::Event,
   event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
 };
+use window::{AppWindow, AppWindowBuilder, AppWindowEvent, AppWindowExt, ApplicationWindow};
 
-use crate::{
-  app_paths,
-  invoke::{create_ipc_protocol, InvokeCommand, InvokeHandler, InvokeResponder, InvokeResult},
-  resources::create_static_protocol,
-  state::AppState,
-  window::{AppWindow, AppWindowBuilder, AppWindowEvent, AppWindowExt, ApplicationWindow},
-};
+use crate::state::AppState;
+
+pub mod app_paths;
+pub mod invoke;
+pub mod resources;
+pub mod window;
 
 pub struct Application<T> {
   pub state: RwLock<T>,

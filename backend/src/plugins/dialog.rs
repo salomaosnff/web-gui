@@ -1,10 +1,12 @@
 use serde_json::json;
 
 use crate::{
-  app::{App, AppExt},
+  app::{
+    invoke::{InvokeCommand, InvokeResult},
+    window::AppWindowExt,
+    App, AppExt,
+  },
   async_invoke_handlers,
-  invoke::{InvokeCommand, InvokeResult},
-  window::AppWindowExt,
 };
 
 async fn dialog_show(command: InvokeCommand) -> InvokeResult {

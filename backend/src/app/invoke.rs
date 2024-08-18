@@ -2,10 +2,9 @@ use serde::Serialize;
 use serde_json::json;
 use wry::{http::Request, RequestAsyncResponder};
 
-use crate::{
-  app::{App, AppExt},
-  window::AppWindow,
-};
+use crate::app::{App, AppExt};
+
+use super::window::AppWindow;
 
 pub type InvokeHandler = dyn Fn(InvokeCommand, InvokeResponder) + Send + Sync + 'static;
 

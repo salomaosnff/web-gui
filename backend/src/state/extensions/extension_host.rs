@@ -1,9 +1,6 @@
-use std::{
-  collections::{HashMap, HashSet},
-  path::PathBuf,
-};
+use std::collections::{HashMap, HashSet};
 
-use crate::{app_paths, window::AppWindow};
+use crate::app::app_paths;
 
 use super::{extension_scanner::ExtensionsScanner, Extension};
 

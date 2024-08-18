@@ -386,7 +386,7 @@ impl AppWindowBuilder {
     });
 
     builder = builder.with_initialization_script(
-      include_str!("./scripts/modules.js")
+      include_str!("../scripts/modules.js")
         .replace("get_import_map()", {
           serde_json::to_string(&{
             let mut import_map = self

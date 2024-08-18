@@ -1,7 +1,4 @@
-use crate::{
-  app::{App, AppExt},
-  app_paths,
-};
+use crate::app::{app_paths, App, AppExt};
 
 pub fn apply(app: App) {
   let modules = std::fs::read_dir(app_paths::esm_dir()).expect("Failed to read esm directory");
