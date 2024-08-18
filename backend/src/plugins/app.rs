@@ -37,15 +37,16 @@ pub fn apply(app: App) {
 
     let path = path.file_name().unwrap().to_str().unwrap();
 
-    app.add_es_module(
-      &format!("lenz/{}", name),
+    app.add_es_module(&format!("lenz/{}", name), {
+      #[cfg(target_os = "windows")]
       {
-        #[cfg(target_os="windows")]
-        {&format!("http://lenz.localhost/esm/{}", path)}
-  
-        #[cfg(not(target_os="windows"))]
-        {&format!("lenz://esm/{}", )}
-      },
-    );
+        &format!("http://lenz.localhost/esm/{path}")
+      }
+
+      #[cfg(not(target_os = "windows"))]
+      {
+        &format!("lenz://esm/{path}")
+      }
+    });
   }
 }
