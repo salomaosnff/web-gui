@@ -1,0 +1,14 @@
+{
+  "$schema": "../../extension.schema.json",
+  "id": "hello",
+  "name": "Hello",
+  "main": "js/extension.js",
+  "description": "Extensão de exemplo",
+  "version": "1.0.0",
+  "publisher": "vscode",
+  "sys": {
+    "linux": "native/plugin.so",
+    "mac": "native/plugin.dylib",
+    "windows": "native/plugin.dll"
+  }
+}

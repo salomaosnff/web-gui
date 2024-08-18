@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
+      background: #f0f0f0;
+    }
+
+    html {
+      border-radius: 2rem;
+      animation: spin 2s linear infinite;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <div>
+    <h1>Lenz</h1>
+    <p id="task"></p>
+  </div>
+
+  <script type="module">
+    import { on } from 'lenz/ipc'
+
+    on('extension.activate', (ext) => {
+      document.getElementById('task').innerText = `Iniciando extensão: ${ext.name}...`
+    })
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <h1>Leitor de arquivos</h1>
+  <input type="text" id="path">
+  <button id="read">Ler arquivo</button>
+  <button id="write">Salvar arquivo</button>
+
+  <h3>Mensagens</h3>
+  <button id="msg-info">Info</button>
+  <button id="msg-warn">Warn</button>
+  <button id="msg-err">Error</button>
+  <button id="msg-confirm">Confirm</button>
+
+  <h3>Arquivos</h3>
+  <button id="open-file">Abrir arquivo</button>
+  <button id="open-files">Abrir arquivos</button>
+  <button id="save-file">Salvar arquivo</button>
+  <button id="select-folder">Selecionar pasta</button>
+  <button id="select-folders">Selecionar pastas</button>
+
+  <pre id="content" contenteditable></pre>
+
+  <!-- Extensions Loader -->
+  <script type="module">
+    import { Extension } from 'lenz/extensions'
+
+    for (const extension_json of window.EXTENSIONS) {
+      const extension = await Extension.from_JSON(extension_json);
+
+      await extension.activate();
+    }
+  </script>
+
+  <script type="module">
+    import * as dialog from 'lenz/dialog'
+    import * as fs from 'lenz/fs'
+
+    const path = document.getElementById('path')
+    const content = document.getElementById('content')
+    const read = document.getElementById('read')
+    const write = document.getElementById('write')
+
+    const msg_info = document.getElementById('msg-info')
+    const msg_warn = document.getElementById('msg-warn')
+    const msg_err = document.getElementById('msg-err')
+    const msg_confirm = document.getElementById('msg-confirm')
+
+    const open_file = document.getElementById('open-file')
+    const open_files = document.getElementById('open-files')
+    const save_file = document.getElementById('save-file')
+    const select_folder = document.getElementById('select-folder')
+    const select_folders = document.getElementById('select-folders')
+
+    read.addEventListener('click', () => {
+      const binData = fs.readFileSync(path.value, content.innerText);
+      content.innerText = new TextDecoder().decode(binData);
+    })
+
+    write.addEventListener('click', () => {
+      fs.writeFileSync(path.value, content.innerText);
+    })
+
+    msg_info.addEventListener('click', () => {
+      dialog.info({
+        title: 'Informação',
+        message: 'Mensagem de informação'
+      })
+    })
+
+    msg_warn.addEventListener('click', () => {
+      dialog.warn({
+        title: 'Aviso',
+        message: 'Mensagem de aviso'
+      })
+    })
+
+    msg_err.addEventListener('click', () => {
+      dialog.error({
+        title: 'Erro',
+        message: 'Mensagem de erro'
+      })
+    })
+
+    msg_confirm.addEventListener('click', () => {
+      const result = dialog.confirm({
+        title: 'Confirmação',
+        message: 'Deseja confirmar?',
+        level: 'error'
+      });
+
+      console.log(result);
+    })
+
+    open_file.addEventListener('click', () => {
+      const file = dialog.openFile({
+        title: 'Abrir arquivo',
+        filters: {
+          'Todos os arquivos': ['*'],
+          'Imagens': ['png', 'jpg', 'jpeg'],
+          'Documentos': ['pdf', 'doc', 'docx'],
+          'Código fonte': ['js', 'ts', 'html', 'css'],
+          'Arquivos de texto': ['txt'],
+          'Arquivos JSON': ['json'],
+          'Projetos Lenz': ['lenz']
+        }
+      });
+
+      path.value = file;
+    })
+
+    open_files.addEventListener('click', () => {
+      const files = dialog.openFiles({
+        title: 'Abrir arquivos',
+        filters: {
+          'Todos os arquivos': ['*'],
+          'Imagens': ['png', 'jpg', 'jpeg'],
+          'Documentos': ['pdf', 'doc', 'docx'],
+          'Código fonte': ['js', 'ts', 'html', 'css'],
+          'Arquivos de texto': ['txt'],
+          'Arquivos JSON': ['json'],
+          'Projetos Lenz': ['lenz']
+        }
+      });
+
+      console.log(files);
+    })
+
+    save_file.addEventListener('click', () => {
+      const file = dialog.saveFile({
+        title: 'Salvar arquivo',
+        filters: {
+          'Todos os arquivos': ['*'],
+          'Imagens': ['png', 'jpg', 'jpeg'],
+          'Documentos': ['pdf', 'doc', 'docx'],
+          'Código fonte': ['js', 'ts', 'html', 'css'],
+          'Arquivos de texto': ['txt'],
+          'Arquivos JSON': ['json'],
+          'Projetos Lenz': ['lenz']
+        }
+      });
+
+      console.log(file);
+    })
+
+    select_folder.addEventListener('click', () => {
+      const folder = dialog.selectFolder({
+        title: 'Selecionar pasta'
+      });
+
+      console.log(folder);
+    })
+
+    select_folders.addEventListener('click', () => {
+      const folders = dialog.selectFolders({
+        title: 'Selecionar pastas'
+      });
+
+      console.log(folders);
+    })
+
+  </script>
+</body>
+
+</html>

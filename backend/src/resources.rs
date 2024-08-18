@@ -5,8 +5,8 @@ use wry::{
 
 use crate::app::App;
 
-pub fn create_static_protocol<T: Send + Sync + 'static>(
-  app: App<T>,
+pub fn create_static_protocol(
+  app: App,
 ) -> impl Fn(Request<Vec<u8>>, RequestAsyncResponder) + 'static {
   move |request, responder| {
     let builder = wry::http::response::Builder::new().header("Access-Control-Allow-Origin", "*");
@@ -22,7 +22,12 @@ pub fn create_static_protocol<T: Send + Sync + 'static>(
       );
     };
 
-    if !app.static_protocol_folders.contains_key(host) {
+    let static_protocol_folders = app
+      .static_protocol_folders
+      .read()
+      .expect("Failed to acquire lock on static protocol folders");
+
+    if !static_protocol_folders.contains_key(host) {
       return responder.respond(
         builder
           .status(StatusCode::BAD_REQUEST)
@@ -31,7 +36,7 @@ pub fn create_static_protocol<T: Send + Sync + 'static>(
       );
     }
 
-    let folder = app.static_protocol_folders.get(host).unwrap();
+    let folder = static_protocol_folders.get(host).unwrap();
     let mut path = folder.join(uri.path().trim_start_matches('/'));
 
     if path.is_dir() {
