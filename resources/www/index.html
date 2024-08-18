@@ -31,12 +31,13 @@
 
   <!-- Extensions Loader -->
   <script type="module">
-    import { Extension } from 'lenz/extensions'
+    import { Extension, activate } from 'lenz/extensions'
+    import { on } from 'lenz/ipc'
+
+    on('extension.activated', activate);
 
     for (const extension_json of window.EXTENSIONS) {
-      const extension = await Extension.from_JSON(extension_json);
-
-      await extension.activate();
+      await activate(extension_json);
     }
   </script>
 

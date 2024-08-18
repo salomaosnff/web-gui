@@ -57,3 +57,38 @@ export class Extension {
     });
   }
 }
+
+const extension_queue = [];
+let current_extension = null;
+
+export async function activate(extension_json) {
+  if (!extension_json) {
+    return;
+  }
+
+  extension_queue.push(extension_json);
+
+  while (extension_queue.length > 0) {
+    await current_extension;
+    const extension_json = extension_queue.shift();
+
+    if (!extension_json?.main_script_url) {
+      continue;
+    }
+
+    await (current_extension = new Promise(async (resolve, reject) => {
+      try {
+        const extension = await Extension.from_JSON(extension_json);
+
+        await extension.activate?.();
+
+        resolve()
+
+      } catch (err) {
+        reject(err);
+      } finally {
+        current_extension = null;
+      }
+    }))
+  }
+}

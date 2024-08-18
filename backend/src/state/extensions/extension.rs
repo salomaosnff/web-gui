@@ -33,12 +33,20 @@ impl Extension {
     &self.path
   }
 
-  pub fn main_script_url(&self) -> String {
-    format!(
-      "{}/{}",
-      self.public_url(),
-      self.manifest.main.trim_start_matches("/")
-    )
+  pub fn has_main_script(&self) -> bool {
+    self.manifest.main.len() > 0
+  }
+
+  pub fn main_script_url(&self) -> Option<String> {
+    if self.manifest.main.len() > 0 {
+      Some(format!(
+        "{}/{}",
+        self.public_url(),
+        self.manifest.main.trim_start_matches("/")
+      ))
+    } else {
+      None
+    }
   }
 
   pub fn activate(self, app: App) {

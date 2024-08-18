@@ -41,6 +41,7 @@ async fn main() {
 
   tokio::task::spawn(async move {
     splash.block_until_ready();
+    main.block_until_ready();
 
     let extensions = app2
       .state
@@ -50,16 +51,21 @@ async fn main() {
       .search_extensions();
 
     for extension in extensions {
+      let has_main_script = extension.has_main_script();
       let extension_json = json!({
         "id": extension.id(),
         "name": extension.manifest().name,
+        "main_script_url": extension.main_script_url()
       });
       splash.emit("extension.activate", extension_json.clone());
 
       extension.activate(app2.clone());
 
-      splash.emit("extension.activated", extension_json);
-      tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+      splash.emit("extension.activated", extension_json.clone());
+
+      if has_main_script {
+        main.emit("extension.activated", extension_json.clone());
+      }
     }
 
     main.show();
