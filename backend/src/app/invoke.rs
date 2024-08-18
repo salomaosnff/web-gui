@@ -153,55 +153,57 @@ pub fn create_ipc_protocol(app: App) -> impl Fn(Request<Vec<u8>>, RequestAsyncRe
   move |request, responder| {
     let app = app.clone();
 
-    let host = request.uri().host().unwrap().to_string();
+    tokio::task::spawn(async move {
+      let host = request.uri().host().unwrap().to_string();
 
-    if host != "invoke" {
-      return responder.respond(
-        wry::http::response::Builder::new()
-          .status(400)
-          .body::<Vec<u8>>("Invalid host".into())
-          .unwrap(),
-      );
-    }
-
-    let method = request.uri().path().trim_start_matches('/').to_string();
-    let builder = wry::http::response::Builder::new();
-
-    let window_id: u32 = request
-      .headers()
-      .get("X-Window-Id")
-      .unwrap()
-      .to_str()
-      .unwrap()
-      .parse()
-      .expect("Invalid window id");
-
-    match serde_json::from_slice::<Vec<serde_json::Value>>(request.body()) {
-      Ok(args) => {
-        app.invoke(
-          InvokeCommand {
-            app: app.clone(),
-            method,
-            args,
-            window: app.get_window(window_id).unwrap().clone(),
-          },
-          InvokeResponder(responder),
-        );
-      }
-      Err(err) => {
-        responder.respond(
-          builder
-            .header("Access-Control-Allow-Origin", "*")
+      if host != "invoke" {
+        return responder.respond(
+          wry::http::response::Builder::new()
             .status(400)
-            .body::<Vec<u8>>(
-              json!(InvokeResult::Err(err.to_string()))
-                .to_string()
-                .into_bytes(),
-            )
+            .body::<Vec<u8>>("Invalid host".into())
             .unwrap(),
         );
       }
-    };
+
+      let method = request.uri().path().trim_start_matches('/').to_string();
+      let builder = wry::http::response::Builder::new();
+
+      let window_id: u32 = request
+        .headers()
+        .get("X-Window-Id")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .parse()
+        .expect("Invalid window id");
+
+      match serde_json::from_slice::<Vec<serde_json::Value>>(request.body()) {
+        Ok(args) => {
+          app.invoke(
+            InvokeCommand {
+              app: app.clone(),
+              method,
+              args,
+              window: app.get_window(window_id).unwrap().clone(),
+            },
+            InvokeResponder(responder),
+          );
+        }
+        Err(err) => {
+          responder.respond(
+            builder
+              .header("Access-Control-Allow-Origin", "*")
+              .status(400)
+              .body::<Vec<u8>>(
+                json!(InvokeResult::Err(err.to_string()))
+                  .to_string()
+                  .into_bytes(),
+              )
+              .unwrap(),
+          );
+        }
+      };
+    });
   }
 }
 
@@ -238,8 +240,7 @@ macro_rules! blocking_invoke_handlers {
   ($app:expr, {$($name:expr => $handler:expr),*}) => {
     $(
       $app.add_invoke_handler($name, |command, responder| {
-        let result = $handler(command);
-        responder.reply(result.into());
+        responder.reply($handler(command).into());
       });
     )*
   };
