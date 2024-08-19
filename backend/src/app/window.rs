@@ -351,7 +351,7 @@ impl AppWindowBuilder {
       target_os = "ios",
       target_os = "android"
     ))]
-    let mut builder = WebViewBuilder::new(&tao_window);
+    let mut builder = wry::WebViewBuilder::new(&tao_window);
 
     #[cfg(not(any(
       target_os = "windows",
@@ -385,55 +385,6 @@ impl AppWindowBuilder {
       }
     });
 
-    builder = builder.with_initialization_script(
-      include_str!("../scripts/modules.js")
-        .replace("get_import_map()", {
-          serde_json::to_string(&{
-            let mut import_map = self
-              .app
-              .import_map
-              .read()
-              .expect("Failed to acquire lock on import map")
-              .clone();
-
-            for (name, url) in &self.import_map {
-              import_map.insert(name.clone(), url.clone());
-            }
-
-            import_map
-          })
-          .expect("Failed to serialize import map")
-          .as_str()
-        })
-        .replace(
-          "get_extensions()",
-          serde_json::to_string::<Vec<serde_json::value::Value>>(&{
-            let extensions = self
-              .app
-              .state
-              .read()
-              .expect("Failed to acquire lock on state");
-            let extensions = extensions
-              .extension_host
-              .extensions_for_window_labels(&self.labels);
-
-            extensions
-              .into_iter()
-              .map(|extension| {
-                serde_json::json!({
-                  "id": extension.id(),
-                  "dir": extension.dir(),
-                  "public_url": extension.public_url(),
-                  "main_script_url": extension.main_script_url(),
-                })
-              })
-              .collect::<Vec<_>>()
-          })
-          .expect("Failed to serialize extensions")
-          .as_str(),
-        )
-        .as_str(),
-    );
 
     if let Some(url) = self.url {
       builder = builder.with_url(&url);

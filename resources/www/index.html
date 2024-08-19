@@ -35,10 +35,6 @@
     import { on } from 'lenz/ipc'
 
     on('extension.activated', activate);
-
-    for (const extension_json of window.EXTENSIONS) {
-      await activate(extension_json);
-    }
   </script>
 
   <script type="module">

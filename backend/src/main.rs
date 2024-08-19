@@ -1,6 +1,5 @@
 use app::{
-  window::{AppWindowEvent, AppWindowExt},
-  AppExt,
+  resources::custom_protocol, window::{AppWindowEvent, AppWindowExt}, AppExt
 };
 use serde_json::json;
 
@@ -34,7 +33,7 @@ async fn main() {
     .with_closable(false)
     .with_size(400.0, 400.0)
     .at_center()
-    .with_url("lenz://app/splash.html")
+    .with_url(custom_protocol("lenz", "app/splash.html"))
     .build(&event_loop);
 
   let app2 = app.clone();

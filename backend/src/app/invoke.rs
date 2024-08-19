@@ -1,6 +1,6 @@
 use serde::Serialize;
 use serde_json::json;
-use wry::{http::Request, RequestAsyncResponder};
+use wry::{http::{Method, Request}, RequestAsyncResponder};
 
 use crate::app::{App, AppExt};
 
@@ -153,57 +153,88 @@ pub fn create_ipc_protocol(app: App) -> impl Fn(Request<Vec<u8>>, RequestAsyncRe
   move |request, responder| {
     let app = app.clone();
 
-    tokio::task::spawn(async move {
-      let host = request.uri().host().unwrap().to_string();
-
-      if host != "invoke" {
-        return responder.respond(
+    match request.method() {
+      &Method::OPTIONS => {
+        responder.respond(
           wry::http::response::Builder::new()
-            .status(400)
-            .body::<Vec<u8>>("Invalid host".into())
-            .unwrap(),
-        );
+          .header("Access-Control-Allow-Origin", "*")
+          .header("Access-Control-Allow-Methods", "POST, OPTIONS")
+          .header("Access-Control-Expose-Headers", "X-Invoke-Result")
+          .header("Access-Control-Allow-Headers", "X-Window-Id,Content-Type")
+          .status(204)
+          .body(Vec::new())
+          .expect("Invalid response")
+        )
+      },
+      &Method::POST => {
+        tokio::task::spawn(async move {
+          let uri = request.uri();
+          let (host, path) = if uri.host().unwrap_or_default() == "localhost" {
+            let (host, path) = uri.path().trim_start_matches("/").split_once("/").unwrap_or_default();
+            (host, path)
+          } else { (uri.host().unwrap_or_default(), uri.path()) };
+    
+          if host != "invoke" {
+            return responder.respond(
+              wry::http::response::Builder::new()
+                .status(400)
+                .body::<Vec<u8>>("Invalid host".into())
+                .unwrap(),
+            );
+          }
+    
+          let method = path.trim_start_matches('/').to_string();
+          let builder = wry::http::response::Builder::new();
+    
+          let window_id: u32 = request
+            .headers()
+            .get("X-Window-Id")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .parse()
+            .expect("Invalid window id");
+    
+          match serde_json::from_slice::<Vec<serde_json::Value>>(request.body()) {
+            Ok(args) => {
+              app.invoke(
+                InvokeCommand {
+                  app: app.clone(),
+                  method,
+                  args,
+                  window: app.get_window(window_id).unwrap().clone(),
+                },
+                InvokeResponder(responder),
+              );
+            }
+            Err(err) => {
+              responder.respond(
+                builder
+                  .header("Access-Control-Allow-Origin", "*")
+                  .status(400)
+                  .body::<Vec<u8>>(
+                    json!(InvokeResult::Err(err.to_string()))
+                      .to_string()
+                      .into_bytes(),
+                  )
+                  .unwrap(),
+              );
+            }
+          };
+        });
+      },
+      _ => {
+        responder.respond(
+          wry::http::response::Builder::new()
+          .header("Access-Control-Allow-Origin", "*")
+          .header("Access-Control-Allow-Methods", "POST, OPTIONS")
+          .header("Access-Control-Expose-Headers", "X-Invoke-Result")
+          .status(405)
+          .body("Method not Allowed!".as_bytes())
+          .expect("Invalid response")
+        )
       }
-
-      let method = request.uri().path().trim_start_matches('/').to_string();
-      let builder = wry::http::response::Builder::new();
-
-      let window_id: u32 = request
-        .headers()
-        .get("X-Window-Id")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .parse()
-        .expect("Invalid window id");
-
-      match serde_json::from_slice::<Vec<serde_json::Value>>(request.body()) {
-        Ok(args) => {
-          app.invoke(
-            InvokeCommand {
-              app: app.clone(),
-              method,
-              args,
-              window: app.get_window(window_id).unwrap().clone(),
-            },
-            InvokeResponder(responder),
-          );
-        }
-        Err(err) => {
-          responder.respond(
-            builder
-              .header("Access-Control-Allow-Origin", "*")
-              .status(400)
-              .body::<Vec<u8>>(
-                json!(InvokeResult::Err(err.to_string()))
-                  .to_string()
-                  .into_bytes(),
-              )
-              .unwrap(),
-          );
-        }
-      };
-    });
+    };
   }
 }
 

@@ -25,8 +25,6 @@ window.__dispatch = function dispatch(event, data) {
   listenersMap.get(event)?.forEach(callback => callback(data));
 }
 
-console.log('IPC Loaded');
-
 export function createInvokeRequest(method, ...params) {
   let body = null;
   const headers = new Headers({
@@ -43,7 +41,7 @@ export function createInvokeRequest(method, ...params) {
 
   return {
     method: 'POST',
-    url: `ipc://invoke/${method}`,
+    url: window.CUSTOM_PROTOCOL('ipc', `invoke/${method}`),
     headers,
     body,
   }
@@ -84,8 +82,6 @@ export function invokeSync(name, ...params) {
 
   const xhr = new XMLHttpRequest();
 
-  xhr.responseType = 'arraybuffer';
-
   xhr.open(method, url, false);
 
   for (const [key, value] of headers.entries()) {
@@ -104,9 +100,12 @@ export function invokeSync(name, ...params) {
       throw new InvokeError(new TextDecoder().decode(new Uint8Array(xhr.response)));
     }
   }
-
+  
   if (resultType === 'Ok') {
     if (xhr.getResponseHeader('Content-Type') === 'application/json') {
+      if (typeof xhr.response === 'string') {
+        return JSON.parse(xhr.response)
+      }
       return JSON.parse(
         new TextDecoder().decode(new Uint8Array(xhr.response))
       )

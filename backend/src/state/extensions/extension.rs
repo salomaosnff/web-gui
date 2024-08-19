@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::app::App;
+use crate::app::{resources::custom_protocol, App};
 
 use super::{ExtensionError, ExtensionManifest};
 
@@ -22,7 +22,7 @@ impl Extension {
   }
 
   pub fn public_url(&self) -> String {
-    format!("lenz://{}", self.manifest.id)
+    custom_protocol("lenz", self.id())
   }
 
   pub fn manifest(&self) -> &ExtensionManifest {
