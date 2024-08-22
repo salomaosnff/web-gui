@@ -34,11 +34,11 @@ impl Extension {
   }
 
   pub fn has_main_script(&self) -> bool {
-    self.manifest.main.len() > 0
+    !self.manifest.main.is_empty()
   }
 
   pub fn main_script_url(&self) -> Option<String> {
-    if self.manifest.main.len() > 0 {
+    if self.has_main_script() {
       Some(format!(
         "{}/{}",
         self.public_url(),

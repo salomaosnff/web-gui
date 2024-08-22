@@ -10,9 +10,11 @@ use tao::{
   rwh_06::{HasWindowHandle, RawWindowHandle},
   window::WindowId,
 };
-use wry::{http::Request, RequestAsyncResponder};
+use wry::{http::Request, RequestAsyncResponder, WebContext};
 
 use crate::app::{App, AppExt};
+
+use super::app_paths::app_data;
 
 #[derive(Debug)]
 pub enum AppWindowEvent {
@@ -367,16 +369,56 @@ impl AppWindowBuilder {
     };
 
     let tao_window2 = tao_window.clone();
+    let mut web_context = WebContext::new(Some(app_data().join(".webdata")));
+
     builder = builder
       .with_transparent(self.transparent)
+      .with_autoplay(true)
+      .with_focused(true)
+      .with_user_agent("Lenz")
+      .with_web_context(&mut web_context)
       .with_document_title_changed_handler(move |title| {
         tao_window2.set_title(title.as_str());
       });
 
-    builder = builder.with_initialization_script(&format!(
-      "Object.defineProperty(window, 'ID', {{ value: {}, writable: false, enumerable: true }});",
-      ApplicationWindow::window_id_to_u32(tao_window.id())
-    ));
+    builder = builder
+      .with_initialization_script(&format!(
+        "Object.defineProperty(window, 'ID', {{ value: {}, writable: false, enumerable: true }});",
+        ApplicationWindow::window_id_to_u32(tao_window.id())
+      ))
+      .with_initialization_script(
+        &include_str!("../scripts/init.js")
+          .replace(
+            "$get_import_map()",
+            serde_json::to_string(&{
+              let mut import_map = self
+                .app
+                .import_map
+                .read()
+                .expect("Failed to acquire lock on import map")
+                .clone();
+
+              for (name, url) in self.import_map.iter() {
+                import_map.insert(name.clone(), url.clone());
+              }
+
+              import_map
+            })
+            .expect("Failed to serialize import map")
+            .as_str(),
+          )
+          .replace("$get_protocol_url()", {
+            #[cfg(target_os = "windows")]
+            {
+              "`http://${protocol}.localhost/${url}`"
+            }
+
+            #[cfg(not(target_os = "windows"))]
+            {
+              "`${protocol}://${url}`"
+            }
+          }),
+      );
 
     builder = builder.with_on_page_load_handler(move |event, _| {
       if let wry::PageLoadEvent::Finished = event {
@@ -384,7 +426,6 @@ impl AppWindowBuilder {
           .expect("Failed to send ready event");
       }
     });
-
 
     if let Some(url) = self.url {
       builder = builder.with_url(&url);

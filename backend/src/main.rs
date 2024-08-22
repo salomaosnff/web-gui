@@ -1,5 +1,9 @@
+use std::fmt::format;
+
 use app::{
-  resources::custom_protocol, window::{AppWindowEvent, AppWindowExt}, AppExt
+  resources::custom_protocol,
+  window::{AppWindowEvent, AppWindowExt},
+  AppExt,
 };
 use serde_json::json;
 
@@ -14,12 +18,26 @@ async fn main() {
 
   plugins::apply(app.clone());
 
+  let base_url: String = {
+    #[cfg(debug_assertions)]
+    {
+      std::env::var("LENZ_BASE_URL").unwrap_or_else(|_| custom_protocol("lenz", "app"))
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+      custom_protocol("lenz", "app")
+    }
+  };
+
+  println!("Base URL: {}", base_url);
+
   let main = app
     .build_window()
     .main()
     .with_visible(false)
     .with_title("Lenz")
-    .with_url(std::env::var("LENZ_URL").unwrap_or_else(|_| "lenz://app/index.html".to_owned()))
+    .with_url(&base_url)
     .with_devtools()
     .at_center()
     .build(&event_loop);
@@ -33,7 +51,7 @@ async fn main() {
     .with_closable(false)
     .with_size(400.0, 400.0)
     .at_center()
-    .with_url(custom_protocol("lenz", "app/splash.html"))
+    .with_url(format!("{}/splash.html", base_url))
     .build(&event_loop);
 
   let app2 = app.clone();

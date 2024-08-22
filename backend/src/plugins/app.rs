@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 use crate::app::{app_paths, App, AppExt};
 
 pub fn apply(app: App) {
@@ -38,15 +36,19 @@ pub fn apply(app: App) {
     let path = path.file_name().unwrap().to_str().unwrap();
 
     app.add_es_module(&format!("lenz/{}", name), {
-      #[cfg(target_os = "windows")]
-      {
-        &format!("http://lenz.localhost/esm/{path}")
-      }
+      let base_url = std::env::var("LENZ_BASE_URL").unwrap_or_else(|_| {
+        #[cfg(target_os = "windows")]
+        {
+          "http://lenz.localhost/".into()
+        }
 
-      #[cfg(not(target_os = "windows"))]
-      {
-        &format!("lenz://esm/{path}")
-      }
+        #[cfg(not(target_os = "windows"))]
+        {
+          "lenz://".into()
+        }
+      });
+
+      &format!("{}/esm/{}", base_url, path)
     });
   }
 }

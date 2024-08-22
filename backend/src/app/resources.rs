@@ -69,8 +69,8 @@ pub fn create_static_protocol(
           .status(StatusCode::OK)
           .header("Content-Type", mime_type.to_string())
           .body({
-            if (mime_type == mime_guess::mime::TEXT_HTML
-              || mime_type == mime_guess::mime::TEXT_HTML_UTF_8)
+            if mime_type == mime_guess::mime::TEXT_HTML
+              || mime_type == mime_guess::mime::TEXT_HTML_UTF_8
             {
               if let Ok(html) = String::from_utf8(content.clone()) {
                 let import_map = serde_json::to_string_pretty(&{
@@ -110,16 +110,17 @@ pub fn create_static_protocol(
                     "</head>",
                     &format!(
                       r#"
-<script type="importmap">
+<script type="importmap" id="lenz_importmap">
+<script id="lenz_custom_protocol>
+Object.defineProperty(window, 'CUSTOM_PROTOCOL', {{
+  value: (protocol, url) => `{custom_protocol}`
+}})
+</script>
 {{
   "imports": {import_map}
 }}
 </script>
-<script>
-  Object.defineProperty(window, 'CUSTOM_PROTOCOL', {{
-    value: (protocol, url) => `{custom_protocol}`
-  }})
-</script>
+<script type="module" id="lenz_ipc_init">import 'lenz/ipc';</script>
 </head>
                 "#
                     ),

@@ -88,27 +88,31 @@ export function invokeSync(name, ...params) {
     xhr.setRequestHeader(key, value);
   }
 
+  // Is Windows?
+  if (!navigator.userAgent.includes('Windows')) {
+    xhr.responseType = 'arraybuffer';
+  }
+
   xhr.send(body);
 
   const resultType = xhr.getResponseHeader('X-Invoke-Result');
 
   if (resultType === 'Err') {
     if (xhr.getResponseHeader('Content-Type') === 'application/json') {
+      console.log(new TextDecoder().decode(new Uint8Array(xhr.response)))
       throw new InvokeError(JSON.parse(new TextDecoder().decode(new Uint8Array(xhr.response))));
     } else {
       console.warn('Error response is not JSON', xhr);
       throw new InvokeError(new TextDecoder().decode(new Uint8Array(xhr.response)));
     }
   }
-  
+
   if (resultType === 'Ok') {
     if (xhr.getResponseHeader('Content-Type') === 'application/json') {
       if (typeof xhr.response === 'string') {
         return JSON.parse(xhr.response)
       }
-      return JSON.parse(
-        new TextDecoder().decode(new Uint8Array(xhr.response))
-      )
+      return JSON.parse(new TextDecoder().decode(new Uint8Array(xhr.response)));
     }
 
     return xhr.response;

@@ -2,6 +2,8 @@
 
 # Build the frontend
 echo "Building frontend..."
+rm -rf frontend/packages/app/public/esm
+ln -s ../resources/esm frontend/packages/app/public/esm
 cd frontend
 pnpm build
 mv dist ../backend/resources/

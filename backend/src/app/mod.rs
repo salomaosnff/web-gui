@@ -4,6 +4,7 @@ use std::{
   sync::{Arc, RwLock},
 };
 
+use app_paths::app_data;
 use invoke::{create_ipc_protocol, InvokeCommand, InvokeHandler, InvokeResponder, InvokeResult};
 use resources::create_static_protocol;
 use tao::{
@@ -11,6 +12,7 @@ use tao::{
   event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
 };
 use window::{AppWindow, AppWindowBuilder, AppWindowEvent, AppWindowExt, ApplicationWindow};
+use wry::WebContext;
 
 use crate::state::AppState;
 

@@ -30,7 +30,7 @@ importers:
         specifier: ^8.1.0
         version: 8.1.0(eslint@9.9.0)(typescript@5.5.4)
 
-  packages/frontend-app:
+  packages/app:
     dependencies:
       vue:
         specifier: ^3.4.37
@@ -45,6 +45,9 @@ importers:
       vite:
         specifier: ^5.4.1
         version: 5.4.1
+      vite-plugin-externalize-dependencies:
+        specifier: ^1.0.1
+        version: 1.0.1
       vue-tsc:
         specifier: ^2.0.29
         version: 2.0.29(typescript@5.5.4)
@@ -956,6 +959,9 @@ packages:
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+
+  vite-plugin-externalize-dependencies@1.0.1:
+    resolution: {integrity: sha512-kRIizv+YcrXFwzjde1iqayKTOKLR0JE3JPVrwm/6bsrXnwGSz+3Q+pKOgamAtlASPXx13JpXB50/OfQ0GqiIUw==}
 
   vite@5.4.1:
     resolution: {integrity: sha512-1oE6yuNXssjrZdblI9AfBbHCC41nnyoVoEZxQnID6yvQZAFBzxxkqoFLtHUMkYunL8hwOLEjgTuxpkRxvba3kA==}
@@ -1887,6 +1893,8 @@ snapshots:
       punycode: 2.3.1
 
   util-deprecate@1.0.2: {}
+
+  vite-plugin-externalize-dependencies@1.0.1: {}
 
   vite@5.4.1:
     dependencies:
