@@ -1,4 +1,8 @@
-import * as fs from 'lenz/fs';
+// import * as dialog from 'lenz/dialog';
+
 export function activate({ subscriptions }) {
-  console.log('Hello from the extension!', fs);
+  // dialog.show({
+  //   title: 'Hello World',
+  //   message: 'Hello World!',
+  // })
 }

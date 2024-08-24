@@ -19,11 +19,12 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+
     "types": [
-      "./auto-imports.d.ts",
+      "./typed-router.d.ts",
       "./components.d.ts",
-      "./typed-router.d.ts"
+      "./auto-imports.d.ts",
     ]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "../ui/src/**/*.ts", "../ui/src/**/*.tsx", "../ui/src/**/*.vue"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "unocss"]
 }

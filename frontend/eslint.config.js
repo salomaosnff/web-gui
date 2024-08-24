@@ -27,7 +27,7 @@ export default [
   },
   // Páginas e layouts da aplicação
   {
-    files: ['packages/frontend-app/src/{pages,layouts}/**/*.vue'],
+    files: ['packages/app/src/{pages,layouts}/**/*.vue'],
     rules: {
       'vue/multi-word-component-names': 'off',
     },
