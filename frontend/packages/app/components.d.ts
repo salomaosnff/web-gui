@@ -13,8 +13,10 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     UiBtn: typeof import('./../ui/src/components/UiBtn/UiBtn.vue')['default']
+    UiCheckbox: typeof import('./../ui/src/components/UiCheckbox/UiCheckbox.vue')['default']
     UiIcon: typeof import('./../ui/src/components/UiIcon/UiIcon.vue')['default']
     UiOverlayMenu: typeof import('./../ui/src/components/UiOverlayMenu/UiOverlayMenu.vue')['default']
     UiPopup: typeof import('./../ui/src/components/UiOverlayMenu/UiPopup.vue')['default']
+    UiTextField: typeof import('./../ui/src/components/UiTextField/UiTextField.vue')['default']
   }
 }
