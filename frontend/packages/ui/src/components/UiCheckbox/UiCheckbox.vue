@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import UiBtn from '../UiBtn/UiBtn.vue';
 import { vColor } from '../../directives/vColor';
 
 const props = withDefaults(
@@ -68,15 +67,16 @@ function toggle() {
 </script>
 
 <template>
-  <div v-color="color" class="ui-checkbox inline-flex gap-2 cursor-pointer" tabindex="0" @click="toggle" @keyup.space="toggle">
-    <svg  viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-    <rect x="0" y="0" width="100%" height="100%" :fill="isChecked ? 'var(--current-color)': 'var(--color-surface)'" line-width="1"
-      :stroke="isChecked ? 'var(--current-color)' : 'var(--color-foreground)'" />
+  <div v-color="color" class="ui-checkbox inline-flex gap-2 cursor-pointer" tabindex="0" @click="toggle"
+    @keyup.space="toggle">
+    <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="32" height="32" :fill="isChecked ? 'var(--current-color)' : 'var(--color-surface)'" />
 
-    <path v-if="isChecked" fill="none" stroke-width="4" stroke="var(--color-foreground)" d="M8,14 L16,22 L32,0 " />
-  </svg>
+      <path fill="none" stroke-width="4" stroke="var(--color-foreground)"
+        :d="isChecked ? 'M7,16 L14,23 L26,7' : 'M14,16 L14,16 L14,16'" />
+    </svg>
 
-  <slot/>
+    <slot />
 
   </div>
 
@@ -84,12 +84,18 @@ function toggle() {
 
 <style lang="scss">
 .ui-checkbox {
-  & > svg {
+  &>svg {
     width: 1.25em;
     height: 1.25em;
+    border: 1px solid var(--color-surface-muted);
+
+    path,
+    rect {
+      transition: all .25s ease;
+    }
   }
-  
-  &:focus-visible{
+
+  &:focus-visible {
     outline: 2px solid var(--current-color);
     outline-offset: 2px;
   }

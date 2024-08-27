@@ -27,8 +27,7 @@ export default defineConfig({
     presetTypography({ selectorName: 'typo' }),
     presetWebFonts({
       fonts: {
-        sans: ['Manrope', 'Noto Color Emoji'],
-        title: ['Rubik', 'Noto Color Emoji'],
+        mono: ['Fira Code', 'monospace'],
       },
     }),
   ],

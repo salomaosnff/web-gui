@@ -196,7 +196,7 @@ const isMobile = ref(false);
           isMobile ? 'w-480px' : 'w-full',
         ]"
         frameborder="0"
-        src="https://vuejs.org"
+        src="https://wikipedia.org"
         anonymous
         @load="loaded = true"
       ></iframe>

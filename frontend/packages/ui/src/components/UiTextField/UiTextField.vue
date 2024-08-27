@@ -1,74 +1,86 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { vColor } from '../../directives/vColor';
-import UiIcon from '../UiIcon/UiIcon.vue';
+import { uniqueId } from 'lodash-es';
 
-const props = withDefaults(defineProps<{
-    type?: 'text' | 'password' | 'number' | 'url' | 'email' | 'search'
+withDefaults(
+  defineProps<{
+    type?: "text" | "password" | "number" | "url" | "email" | "search";
     min?: number;
     minlength?: number;
     max?: number;
     maxlength?: number;
     step?: number;
-    autocomplete?: string
+    autocomplete?: string;
     placeholder?: string;
     disabled?: boolean;
+    clearable?: boolean;
+    multiline?: boolean;
+    autofocus?: boolean;
 
+    hideMessages?: boolean;
+    error?: string;
+    hint?: string;
+    color?: string;
 
-    hideMessages?: boolean
-    error?: string
-    hint?: string
-    color?: string
-}>(), { autocomplete: 'off', color: 'primary' });
+    rows?: number
+    cols?: number
 
-const showPassword = defineModel<boolean>('showPassword')
+    label?: string;
+    prependIcon?: keyof typeof import("@mdi/js");
+    appendIcon?: keyof typeof import("@mdi/js");
 
+    controlId?: string;
+  }>(),
+  { autocomplete: "off", color: "primary", controlId: () => uniqueId('text-field-control-') }
+);
+
+const modelValue = defineModel<string>("modelValue");
+const showPassword = defineModel<boolean>("showPassword");
 </script>
 
 <template>
-    <div v-color="color" class="ui-textfield w-full" :class="{ 'ui-textfield--error': error }">
-        <div class="flex items-start ui-textfield__field mt-2 w-full bg--surface ">
-
-            <input class="flex-1 ui-textfield__control bg-transparent fg--foreground px-2 py-1"
-                :type="showPassword ? 'text' : type" :min :max :minlength :maxlength :disabled :step :placeholder
-                :autocomplete />
-            <div>
-                <div class="pt-1 px-2" v-if="type === 'password'" @click="showPassword = !showPassword">
-                    <UiIcon class="fg--muted hover:fg--foreground cursor-pointer"
-                        :name="showPassword ? 'mdiEyeClosed' : 'mdiEye'" />
-                </div>
-            </div>
-        </div>
-        <p class="text-3 h-3">
-            <span v-if="error" class="fg--danger">{{ error }}</span>
-            <span v-else-if="hint" class="fg--muted">{{ hint }}</span>
-        </p>
-    </div>
+  <UiInput :hide-messages :label :control-id :disabled :clearable :error :hint :color :prepend-icon :append-icon>
+    <template #prepend>
+      <UiIcon v-if="type === 'search'" name="mdiMagnify" class="text-1.5em ml-2 text-muted" />
+      <slot name="prepend"></slot>
+    </template>
+    <textarea v-if="multiline" v-model="modelValue" :id="controlId"
+      class="flex-1 ui-textfield__control bg-transparent fg--foreground px-2 py-1" :minlength :maxlength :disabled
+      :placeholder :autocomplete :autofocus></textarea>
+    <input v-else v-model="modelValue" :id="controlId"
+      class="flex-1 ui-textfield__control bg-transparent fg--foreground px-2" :type="showPassword ? 'text' : type" :min
+      :max :minlength :maxlength :disabled :step :placeholder :autocomplete :autofocus />
+  </UiInput>
 </template>
 
 <style lang="scss">
 .ui-textfield {
-    &--error {
-        .ui-textfield__field {
-            border: 1px solid var(--color-danger);
-        }
+  &__control {
+    border: none;
+    outline: none;
+    font: inherit;
+    font-size: 1em;
+    width: auto;
+    width: 100%;
+
+    &::placeholder {
+      color: var(--color-muted);
     }
 
-    &:not(&--error) {
-        .ui-textfield__field {
-            border: 1px solid var(--current-color);
-        }
+    /* clears the 'X' from Internet Explorer */
+    &[type=search]::-ms-clear,
+    &[type=search]::-ms-reveal {
+      display: none;
+      width: 0;
+      height: 0;
     }
 
-    &__field {
-        &:focus-within {
-            outline: 3px solid var(--current-color);
-        }
+    /* clears the 'X' from Chrome */
+    &[type="search"]::-webkit-search-decoration,
+    &[type="search"]::-webkit-search-cancel-button,
+    &[type="search"]::-webkit-search-results-button,
+    &[type="search"]::-webkit-search-results-decoration {
+      display: none;
     }
-
-    &__control {
-        border: none;
-        outline: none;
-    }
+  }
 }
 </style>

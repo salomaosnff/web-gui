@@ -1,41 +1,40 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { vColor } from '../../directives/vColor';
+import { computed, ref } from "vue";
+import { vColor } from "../../directives/vColor";
 
 const props = withDefaults(
   defineProps<{
-    is?: string
-    color?: string
-    disabled?: boolean
-    loading?: boolean
-    icon?: boolean
-    flat?: boolean
-    onClick?(event: MouseEvent): void | Promise<void>
+    is?: string;
+    color?: string;
+    disabled?: boolean;
+    loading?: boolean;
+    icon?: boolean;
+    flat?: boolean;
+    onClick?(event: MouseEvent): void | Promise<void>;
   }>(),
   {
-    is: 'button',
-    color: 'primary',
+    is: "button",
+    color: "primary",
   }
-)
+);
 
-const pendingTask = ref(false)
+const pendingTask = ref(false);
 
 async function handleClick(event: MouseEvent) {
-  if (isDisabled.value || typeof props.onClick !== 'function') {
-    return
+  if (isDisabled.value || typeof props.onClick !== "function") {
+    return;
   }
 
   try {
-    pendingTask.value = true
-    await props.onClick(event)
+    pendingTask.value = true;
+    await props.onClick(event);
   } finally {
-    pendingTask.value = false
+    pendingTask.value = false;
   }
 }
 
-const isLoading = computed(() => props.loading || pendingTask.value)
-const isDisabled = computed(() => props.disabled || pendingTask.value)
-
+const isLoading = computed(() => props.loading || pendingTask.value);
+const isDisabled = computed(() => props.disabled || pendingTask.value);
 </script>
 <template>
   <component v-color="color" :is="is" class="ui-btn" :class="{
@@ -47,11 +46,11 @@ const isDisabled = computed(() => props.disabled || pendingTask.value)
     <Transition>
       <div v-if="isLoading"
         class="ui-btn__loading w-full h-full absolute top-0 left-0 flex items-center justify-center">
-        <UiIcon name="mdiRefresh" class="animate-spin" />
+        <UiIcon name="mdiRefresh" class="animate-spin text-6" />
       </div>
     </Transition>
     <div class="ui-btn__content" :class="{
-      'ui-btn__content--loading': isLoading
+      'ui-btn__content--loading': isLoading,
     }">
       <slot />
     </div>
@@ -60,13 +59,21 @@ const isDisabled = computed(() => props.disabled || pendingTask.value)
 
 <style lang="scss">
 .ui-btn {
+  @apply inline-flex items-center justify-center px-4 py-1 relative rounded-sm;
   background: var(--current-color);
   color: oklch(from white l c h / 82%);
-  @apply inline-flex items-center justify-center px-4 py-2 rounded-md relative;
+  outline: 2px solid transparent;
+  outline-offset: 16px;
+  transition: all 0.25s ease;
+  border: none;
+
+  .ui-icon {
+    font-size: 1.25em;
+  }
 
   &--icon {
     aspect-ratio: 1;
-    @apply p-2 rounded-full;
+    @apply w-8 rounded-full;
   }
 
   &--flat {
@@ -82,7 +89,7 @@ const isDisabled = computed(() => props.disabled || pendingTask.value)
 
     &.v-enter-active,
     &.v-leave-active {
-      transition: all .25s;
+      transition: all 0.25s;
     }
 
     &.v-enter-active {
@@ -96,7 +103,7 @@ const isDisabled = computed(() => props.disabled || pendingTask.value)
   }
 
   &__content {
-    transition: transform .25s;
+    transition: transform 0.25s;
     transition-delay: 0.25s;
 
     &--loading {
@@ -128,8 +135,6 @@ const isDisabled = computed(() => props.disabled || pendingTask.value)
     justify-content: center;
 
     .ui-icon {
-      height: 1.25em;
-
       &:first-child {
         @apply ml--2 mr-1;
       }

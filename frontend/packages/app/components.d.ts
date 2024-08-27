@@ -15,8 +15,10 @@ declare module 'vue' {
     UiBtn: typeof import('./../ui/src/components/UiBtn/UiBtn.vue')['default']
     UiCheckbox: typeof import('./../ui/src/components/UiCheckbox/UiCheckbox.vue')['default']
     UiIcon: typeof import('./../ui/src/components/UiIcon/UiIcon.vue')['default']
+    UiInput: typeof import('./../ui/src/components/UiInput/UiInput.vue')['default']
     UiOverlayMenu: typeof import('./../ui/src/components/UiOverlayMenu/UiOverlayMenu.vue')['default']
     UiPopup: typeof import('./../ui/src/components/UiOverlayMenu/UiPopup.vue')['default']
+    UiSelect: typeof import('./../ui/src/components/UiSelect/UiSelect.vue')['default']
     UiTextField: typeof import('./../ui/src/components/UiTextField/UiTextField.vue')['default']
   }
 }
