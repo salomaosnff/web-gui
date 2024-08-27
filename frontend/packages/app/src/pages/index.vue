@@ -94,7 +94,7 @@ const isMobile = ref(false);
 </script>
 <template>
   <div class="w-full h-full flex flex-col pa-2 gap-2">
-    <AppPanel>
+    <AppPanel class="shadow-lg">
       <div>
         <UiOverlayMenu visible origin="bottom-start">
           <template #activator="{ attrs }">
@@ -111,6 +111,8 @@ const isMobile = ref(false);
                 <UiIcon name="mdiTools" class="text-5" />
                 <span>Ferramentas</span>
               </h3>
+
+              <UiTextField type="search" placeholder="Pesquisar" class="mb-4" />
 
               <ul>
                 <li
@@ -187,10 +189,10 @@ const isMobile = ref(false);
       </div>
     </AppPanel>
     <div
-      class="w-full flex-1 gap-2 relative bg--surface justify-center items-center"
+      class="w-full flex-1 gap-2 relative justify-center items-center"
     >
       <iframe
-        class="h-full rounded-md transition-all duration-1000 mx-auto"
+        class="h-full rounded-md transition-all duration-1000 mx-auto bg--surface shadow-lg"
         :class="[
           loaded ? ['visible', 'opacity-100'] : ['invisible', 'opacity-0'],
           isMobile ? 'w-480px' : 'w-full',
