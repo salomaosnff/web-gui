@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { uniqueId } from 'lodash-es';
+import { computed } from 'vue';
+import { useFormField } from '../../composable/useForm';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
+    name?: string;
     type?: "text" | "password" | "number" | "url" | "email" | "search";
     min?: number;
     minlength?: number;
@@ -35,20 +38,29 @@ withDefaults(
 
 const modelValue = defineModel<string>("modelValue");
 const showPassword = defineModel<boolean>("showPassword");
+
+const { value: fieldValue, error: fieldError, canSet } = useFormField({
+  key: () => props.name ?? '',
+  value: modelValue,
+})
+
+const isDisabled = computed(() => props.disabled || !canSet());
+
 </script>
 
 <template>
-  <UiInput :hide-messages :label :control-id :disabled :clearable :error :hint :color :prepend-icon :append-icon>
+  <UiInput :hide-messages :label :control-id :disabled="isDisabled" :clearable :error="error ?? fieldError ?? ''" :hint
+    :color :prepend-icon :append-icon>
     <template #prepend>
       <UiIcon v-if="type === 'search'" name="mdiMagnify" class="text-1.5em ml-2 text-muted" />
       <slot name="prepend"></slot>
     </template>
-    <textarea v-if="multiline" v-model="modelValue" :id="controlId"
-      class="flex-1 ui-textfield__control bg-transparent fg--foreground px-2 py-1" :minlength :maxlength :disabled
-      :placeholder :autocomplete :autofocus></textarea>
-    <input v-else v-model="modelValue" :id="controlId"
+    <textarea v-if="multiline" v-model="fieldValue" :id="controlId"
+      class="flex-1 ui-textfield__control bg-transparent fg--foreground px-2 py-1" :minlength :maxlength
+      :disabled="isDisabled" :placeholder :autocomplete :autofocus></textarea>
+    <input v-else v-model="fieldValue" :id="controlId"
       class="flex-1 ui-textfield__control bg-transparent fg--foreground px-2" :type="showPassword ? 'text' : type" :min
-      :max :minlength :maxlength :disabled :step :placeholder :autocomplete :autofocus />
+      :max :minlength :maxlength :disabled="isDisabled" :step :placeholder :autocomplete :autofocus />
   </UiInput>
 </template>
 

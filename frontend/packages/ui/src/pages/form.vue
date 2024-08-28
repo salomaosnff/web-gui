@@ -1,34 +1,39 @@
 <script setup lang="ts">
 import { markRaw, ref } from 'vue';
-import { string, z } from 'zod';
+import { z } from 'zod';
 
-const form = ref({ name: ''})
+const form = ref()
 
-const schema  = markRaw(z.object({
-  name: z.string().min(1, 'Campo Obrigátorio')
-}))
+const schema = markRaw(
+  z.object({
+    name: z.string(),
+    password: z.string().min(6, 'Este campo deve ter no mínimo 6 caracteres')
+      .max(20, 'Este campo deve ter no máximo 20 caracteres'),
+  }).default({
+    password: '',
+    name: '',
+  })
+)
+
+async function onFormSubmit(values: z.output<typeof schema>) {
+  console.log(values)
+  await new Promise(resolve => setTimeout(resolve, 3000))
+}
+
 </script>
 
 
 
 <template>
-  <div class="bg--surface pa-4 mx-auto w-120 rounded-md mb-8">
-    <p class="text-6 mb-4">Fazer Login</p>
-    <UiTextField placeholder="Digite..." label="E-mail" type="email" />
-    <UiTextField placeholder="Digite..." label="Password" type="password" />
-    <div class="text-right">
+  <div class="pa-8 mx-auto max-w-150">
+
+    <UiForm v-model="form" :schema="schema" @submit="onFormSubmit" validate-on-mount>
+      <UiTextField name="name" placeholder="Digite..." label="Nome" />
+      <UiTextField name="password" placeholder="Digite..." label="Password" />
+
+      <UiBtn class="mt-4" type="reset" flat>Reset</UiBtn>
       <UiBtn class="mt-4" type="submit">Submit</UiBtn>
-    </div>
+    </UiForm>
+    <pre class="pa-4 bg--surface mt-8 rounded-md">{{ form }}</pre>
   </div>
-  <div class="bg--surface pa-4 mx-auto w-80 rounded-md mb-8">
-    <p class="text-6 mb-4">Fazer Login</p>
-
-    <UiTextField placeholder="E-mail" type="email" />
-    <UiTextField placeholder="Password" type="password" />
-    <UiBtn class="mt-4 w-full" type="submit">Submit</UiBtn>
-  </div>
-
-  <UiForm :schema="schema" v-model="form" v-slot="{data}">
-    <input v-model="data.name" />
-  </UiForm>
 </template>

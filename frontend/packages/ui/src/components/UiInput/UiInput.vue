@@ -80,12 +80,16 @@ const emit = defineEmits<{
   }
 
   &--error {
-    .ui-input__field {
-      border: 1px solid var(--color-danger);
-    }
 
-    .ui-input__control {
-      color: var(--color-danger);
+    .ui-input {
+      &__field {
+        border: 1px solid var(--color-danger);
+      }
+
+      &__label,
+      &__control {
+        color: var(--color-danger);
+      }
     }
   }
 

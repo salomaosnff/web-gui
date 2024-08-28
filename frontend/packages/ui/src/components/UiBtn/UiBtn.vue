@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { SUBMITTING, useForm, VALID, VALIDATING } from "../../composable/useForm";
 import { vColor } from "../../directives/vColor";
 
 const props = withDefaults(
   defineProps<{
     is?: string;
+    type?: "button" | "submit" | "reset";
     color?: string;
     disabled?: boolean;
     loading?: boolean;
@@ -15,8 +17,11 @@ const props = withDefaults(
   {
     is: "button",
     color: "primary",
+    type: "button",
   }
 );
+
+const form = useForm()
 
 const pendingTask = ref(false);
 
@@ -33,11 +38,47 @@ async function handleClick(event: MouseEvent) {
   }
 }
 
-const isLoading = computed(() => props.loading || pendingTask.value);
-const isDisabled = computed(() => props.disabled || pendingTask.value);
+const isLoading = computed(() => {
+  if (props.loading || pendingTask.value) {
+    return true
+  }
+
+  if (props.type === 'submit' && form) {
+    const state: number = form.state.value;
+
+    if (state & SUBMITTING || state & VALIDATING) {
+      return true
+    }
+
+    return false
+  }
+});
+
+const isDisabled = computed(() => {
+  if (props.disabled || pendingTask.value) {
+    return true
+  }
+
+  if (!form) {
+    return false
+  }
+
+  const state: number = form.state.value;
+
+  if (props.type === 'submit') {
+
+    return state & SUBMITTING || state & VALIDATING || !(state & VALID)
+  }
+
+  if (props.type === 'reset') {
+    return state & SUBMITTING
+  }
+
+  return false
+});
 </script>
 <template>
-  <component v-color="color" :is="is" class="ui-btn" :class="{
+  <component v-color="color" :is="is" class="ui-btn" :type :class="{
     'ui-btn--disabled': isDisabled,
     'cursor-wait': isLoading,
     'ui-btn--icon': icon,
