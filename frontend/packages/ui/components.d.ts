@@ -12,6 +12,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     UiBtn: typeof import('./src/components/UiBtn/UiBtn.vue')['default']
     UiCheckbox: typeof import('./src/components/UiCheckbox/UiCheckbox.vue')['default']
+    UiForm: typeof import('./src/components/UiForm/UiForm.vue')['default']
     UiIcon: typeof import('./src/components/UiIcon/UiIcon.vue')['default']
     UiInput: typeof import('./src/components/UiInput/UiInput.vue')['default']
     UiOverlayMenu: typeof import('./src/components/UiOverlayMenu/UiOverlayMenu.vue')['default']
