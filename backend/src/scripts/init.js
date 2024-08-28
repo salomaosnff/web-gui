@@ -4,14 +4,13 @@
   });
 
   function injectImportMap() {
-    if (document.getElementById('lenz-import-map')) return;
+    if (document.getElementById('lenz_importmap')) return;
 
-    const imports = $get_import_map()
     const script = document.createElement('script')
 
-    script.id = 'lenz-import-map'
+    script.id = 'lenz_importmap'
     script.type = 'importmap'
-    script.textContent = JSON.stringify({ imports })
+    script.textContent = JSON.stringify({ imports: $get_import_map() })
 
     document.head.appendChild(script)
   }

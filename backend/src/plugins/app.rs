@@ -48,7 +48,7 @@ pub fn apply(app: App) {
         }
       });
 
-      &format!("{}/esm/{}", base_url, path)
+      &format!("{}esm/{}", base_url, path)
     });
   }
 }

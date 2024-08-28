@@ -68,72 +68,76 @@ pub fn create_static_protocol(
         builder
           .status(StatusCode::OK)
           .header("Content-Type", mime_type.to_string())
-          .body({
-            if mime_type == mime_guess::mime::TEXT_HTML
-              || mime_type == mime_guess::mime::TEXT_HTML_UTF_8
+          .body(
+            #[cfg(target_os = "windows")]
             {
-              if let Ok(html) = String::from_utf8(content.clone()) {
-                let import_map = serde_json::to_string_pretty(&{
-                  let mut import_map = app
-                    .import_map
-                    .read()
-                    .expect("Failed to acquire lock on import map")
-                    .clone();
+              if mime_type == mime_guess::mime::TEXT_HTML
+                || mime_type == mime_guess::mime::TEXT_HTML_UTF_8
+              {
+                if let Ok(html) = String::from_utf8(content.clone()) {
+                  let import_map = serde_json::to_string(&{
+                    let mut import_map = app
+                      .import_map
+                      .read()
+                      .expect("Failed to acquire lock on import map")
+                      .clone();
 
-                  for (name, url) in app
-                    .import_map
-                    .read()
-                    .expect("Failed to lock import_map")
-                    .iter()
-                  {
-                    import_map.insert(name.clone(), url.clone());
-                  }
+                    for (name, url) in app
+                      .import_map
+                      .read()
+                      .expect("Failed to lock import_map")
+                      .iter()
+                    {
+                      import_map.insert(name.clone(), url.clone());
+                    }
 
-                  import_map
-                })
-                .expect("Failed to serialize import map");
+                    import_map
+                  })
+                  .expect("Failed to serialize import map");
 
-                let custom_protocol = {
-                  #[cfg(target_os = "windows")]
-                  {
-                    "http://${protocol}.localhost/${url}"
-                  }
+                  let custom_protocol = {
+                    #[cfg(target_os = "windows")]
+                    {
+                      "http://${protocol}.localhost/${url}"
+                    }
 
-                  #[cfg(not(target_os = "windows"))]
-                  {
-                    "${protocol}://${url}"
-                  }
-                };
+                    #[cfg(not(target_os = "windows"))]
+                    {
+                      "${protocol}://${url}"
+                    }
+                  };
 
-                html
-                  .replace(
-                    "</head>",
-                    &format!(
-                      r#"
-<script type="importmap" id="lenz_importmap">
+                  html
+                    .replace(
+                      "</head>",
+                      &format!(
+                        r#"
+<script id="lenz_importmap" type="importmap">{{"imports": {import_map}}}</script>
 <script id="lenz_custom_protocol>
 Object.defineProperty(window, 'CUSTOM_PROTOCOL', {{
   value: (protocol, url) => `{custom_protocol}`
-}})
+}});
 </script>
-{{
-  "imports": {import_map}
-}}
+<script type="module" id="lenz_ipc_init">
+import 'lenz/ipc';
 </script>
-<script type="module" id="lenz_ipc_init">import 'lenz/ipc';</script>
-</head>
-                "#
-                    ),
-                  )
-                  .as_bytes()
-                  .to_vec()
+</head>"#
+                      ),
+                    )
+                    .as_bytes()
+                    .to_vec()
+                } else {
+                  content
+                }
               } else {
                 content
               }
-            } else {
+            },
+            #[cfg(not(target_os = "windows"))]
+            {
               content
-            }
-          })
+            },
+          )
           .unwrap()
       }
       Err(err) => builder
