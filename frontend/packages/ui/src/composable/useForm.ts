@@ -1,5 +1,21 @@
-import { cloneDeep as _cloneDeep, get as _get, isEqual as _isEqual, set as _set } from "lodash-es";
-import { computed, inject, markRaw, MaybeRefOrGetter, onMounted, provide, readonly, ref, Ref, toValue, watch } from "vue";
+import {
+  cloneDeep as _cloneDeep,
+  get as _get,
+  isEqual as _isEqual,
+  set as _set,
+} from "lodash-es";
+import {
+  computed,
+  inject,
+  markRaw,
+  MaybeRefOrGetter,
+  provide,
+  readonly,
+  ref,
+  Ref,
+  toValue,
+  watch,
+} from "vue";
 import { z } from "zod";
 
 const FormProviderSymbol = Symbol("FormProvider");
@@ -12,39 +28,41 @@ export const SUBMITTED = 0x08;
 export const SUBMIT_FAILED = 0x10;
 
 export interface ProvideFormOptions<S extends z.ZodType> {
-  schema: MaybeRefOrGetter<S>
-  values: Ref<z.infer<S>>
-  validateOnMount?: MaybeRefOrGetter<boolean>
-  onSubmit?(values: z.output<S>): Promise<any>
+  schema: MaybeRefOrGetter<S>;
+  modelValue: Ref<z.infer<S>>;
+  validateOnMount?: MaybeRefOrGetter<boolean>;
+  onSubmit?(values: z.output<S>): Promise<any>;
+  onValid?(values: z.output<S>): void;
 }
 
 export interface UseForm<T> {
-  values: Ref<T>
-  state: Ref<number>
+  values: Ref<T>;
+  errors: Ref<Record<string, string>>;
+  state: Ref<number>;
 
-  validate(): Promise<T>
-  reset(): void
-  submit(): Promise<void>
+  validate(): Promise<T>;
+  reset(): void;
+  submit(): Promise<void>;
 
-  get(key: string): any
-  set(key: string, value: any): void
-  setAndValidate(key: string, value: any): Promise<void>
+  get(key: string): any;
+  set(key: string, value: any): void;
+  setAndValidate(key: string, value: any): Promise<void>;
 
-  getError(key: string): string | null | undefined
-  clearErrors(): void
+  getError(key: string): string | null | undefined;
+  clearErrors(): void;
 
-  canSubmit(): boolean
-  canReset(): boolean
-  canSet(): boolean
-  canValidate(): boolean
-  validateField(key: string): Promise<void>
+  canSubmit(): boolean;
+  canReset(): boolean;
+  canSet(): boolean;
+  canValidate(): boolean;
+  validateField(key: string): Promise<void>;
 }
 
 export function pathToKey(path: Array<string | number>) {
-  let key = '';
+  let key = "";
 
   for (const part of path) {
-    if (typeof part === 'number') {
+    if (typeof part === "number") {
       key += `[${part}]`;
     } else if (key) {
       key += `.${part}`;
@@ -56,22 +74,52 @@ export function pathToKey(path: Array<string | number>) {
   return key;
 }
 
-export function provideForm<S extends z.ZodType>(options: ProvideFormOptions<S>): UseForm<z.output<S>> {
-  const values = ref(toValue(options.values)) as Ref<z.output<S>>;
+export function provideForm<S extends z.ZodType>(
+  options: ProvideFormOptions<S>
+): UseForm<z.output<S>> {
+  const values = ref(toValue(options.modelValue)) as Ref<z.output<S>>;
 
   let initialFormValues = _cloneDeep(values.value);
 
   const state = ref(IDLE);
   const errors = ref<Record<string, string>>({});
 
-  watch(values, (newValues) => {
-    if (!_isEqual(newValues, options.values.value)) {
-      options.values.value = newValues;
+  watch(
+    values,
+    (newValues, oldValues) => {
+      if (
+        oldValues !== undefined &&
+        !_isEqual(newValues, options.modelValue.value)
+      ) {
+        options.modelValue.value = newValues;
+      }
+    },
+    { deep: true }
+  );
+
+  watch(
+    () => values.value,
+    (newValues) => {
+      if (state.value & VALID) {
+        options.onValid?.(_cloneDeep(newValues));
+      }
     }
-  }, { deep: true })
+  );
+
+  watch(
+    options.modelValue,
+    (newValues) => {
+      if (!_isEqual(newValues, values.value)) {
+        values.value = newValues;
+      }
+    },
+    { deep: true }
+  );
 
   function canSubmit() {
-    return !!(state.value & VALID) && !(state.value & (VALIDATING | SUBMITTING));
+    return (
+      !!(state.value & VALID) && !(state.value & (VALIDATING | SUBMITTING))
+    );
   }
 
   function canReset() {
@@ -95,14 +143,18 @@ export function provideForm<S extends z.ZodType>(options: ProvideFormOptions<S>)
       throw new Error("Already submitting");
     }
 
+    if (state.value & VALIDATING) {
+      throw new Error("Cannot submit while validating");
+    }
+
     state.value &= ~SUBMIT_FAILED;
     state.value |= SUBMITTING;
 
     try {
-      const values = await validate();
+      const result = await validateAndUpdateState();
 
-      if (state.value & VALID) {
-        await options.onSubmit?.(values);
+      if (state.value & VALID && result) {
+        await options.onSubmit?.(result.values);
         state.value |= SUBMITTED;
       }
     } catch (error) {
@@ -125,72 +177,105 @@ export function provideForm<S extends z.ZodType>(options: ProvideFormOptions<S>)
     delete errors.value[key];
 
     state.value |= VALIDATING;
+    state.value &= ~VALID;
 
     const schema = toValue(options.schema);
 
     const validationResult = await schema.safeParseAsync(values.value);
 
-    try {
-      if (validationResult.success) {
-        state.value |= VALID;
-        values.value = validationResult.data;
-      } else {
-        state.value &= ~VALID;
+    state.value &= ~VALIDATING;
 
-        for (const issue of validationResult.error.issues) {
-          const errorKey = pathToKey(issue.path);
+    if (validationResult.success) {
+      state.value |= VALID;
+      values.value = validationResult.data;
+    } else {
+      state.value &= ~VALID;
 
-          if (errorKey === key) {
-            errors.value[key] = issue.message;
-            break
-          }
+      for (const issue of validationResult.error.issues) {
+        const errorKey = pathToKey(issue.path);
+
+        if (errorKey === key) {
+          errors.value[key] = issue.message;
+          break;
         }
       }
-    } finally {
-      state.value &= ~VALIDATING;
     }
   }
 
   async function setAndValidate(key: string, value: any) {
     set(key, value);
-    validateField(key);
+
+    const result = await validateAndUpdateState(false);
+
+    if (typeof result !== "undefined") {
+      values.value = result.values;
+      const error = _get(result.errors, key);
+      errors.value = _set(errors.value, key, error);
+    }
   }
 
   function get(key: string) {
     return _get(values.value, key);
   }
 
-  async function validate(setErrors = true) {
+  async function validateOnly() {
+    const schema = toValue(options.schema);
+    const validationResult = await schema.safeParseAsync(values.value);
+
+    if (validationResult.success) {
+      return {
+        values: validationResult.data,
+        valid: true,
+        errors: {} as Record<string, string>,
+      };
+    }
+
+    return {
+      values: values.value,
+      valid: false,
+      errors: validationResult.error.issues.reduce(
+        (acc, error) => {
+          const key = pathToKey(error.path);
+          acc[key] = error.message;
+          return acc;
+        },
+        {} as Record<string, string>
+      ),
+    };
+  }
+
+  async function validateAndUpdateState(setErrors = true) {
     if (state.value & VALIDATING) {
-      throw new Error("Already validating");
+      return;
     }
 
     state.value |= VALIDATING;
 
-    const schema = toValue(options.schema);
+    const {
+      values: newValues,
+      valid,
+      errors: newErrors,
+    } = await validateOnly();
 
-    clearErrors();
-
-    const validationResult = await schema.safeParseAsync(values.value);
-
-    try {
-      if (validationResult.success) {
-        state.value |= VALID;
-        return validationResult.data;
-      } else {
-        state.value &= ~VALID;
-
-        if (setErrors) {
-          errors.value = validationResult.error.issues.reduce((acc, error) => {
-            const key = pathToKey(error.path);
-            acc[key] = error.message;
-            return acc;
-          }, {} as Record<string, string>);
-        }
-      }
-    } finally {
-      state.value &= ~VALIDATING;
+    if (valid) {
+      state.value |= VALID;
+    } else {
+      state.value &= ~VALID;
     }
+
+    if (setErrors) {
+      errors.value = newErrors;
+    }
+
+    state.value &= ~VALIDATING;
+
+    values.value = newValues;
+
+    return {
+      values: newValues,
+      valid,
+      errors: newErrors,
+    };
   }
 
   async function reset() {
@@ -221,17 +306,12 @@ export function provideForm<S extends z.ZodType>(options: ProvideFormOptions<S>)
   }
 
   function getError(key: string) {
-    return errors.value[key] ?? null
+    return errors.value[key] ?? null;
   }
-
-
-
-  onMounted(async () => {
-    values.value = await validate(toValue(options.validateOnMount));
-  })
 
   const provider: UseForm<z.output<S>> = markRaw({
     values,
+    errors,
     state: readonly(state),
 
     clearErrors,
@@ -243,18 +323,18 @@ export function provideForm<S extends z.ZodType>(options: ProvideFormOptions<S>)
 
     submit,
     reset,
-    validate,
+    validate: () => validateAndUpdateState(),
 
     canReset,
     canSet,
     canSubmit,
     canValidate,
-    validateField
-  })
+    validateField,
+  });
 
   provide(FormProviderSymbol, provider);
 
-  return provider
+  return provider;
 }
 
 export function useForm<T>(): UseForm<T> | undefined {
@@ -262,53 +342,80 @@ export function useForm<T>(): UseForm<T> | undefined {
 }
 
 export interface UseFormFieldOptions<T> {
-  value: Ref<T>
-  key: MaybeRefOrGetter<string>
+  key: MaybeRefOrGetter<string>;
+  modelValue: Ref<T | undefined>;
 }
 
-export interface useFormField<T> {
-  value: Ref<T>
-  error: Ref<string | null | undefined>
-  canSet(): boolean
+export interface UseFormField<T> {
+  error: Ref<string | null | undefined>;
+  canSet(): boolean;
+  get(): T | undefined;
+  set(value: T | undefined): void;
+  setAndValidate(value: T | undefined): void;
+  clearError(): void;
 }
 
-export function useFormField(options: UseFormFieldOptions<any>): useFormField<any> {
+export function useFormField<T>({
+  key,
+  modelValue,
+}: UseFormFieldOptions<T>): UseFormField<T> {
   const form = useForm();
 
-  const value = computed({
-    get() {
-      const key = toValue(options.key);
-
-      if (key && form) {
-        return form.get(key);
-      }
-
-      return options.value.value;
-    },
-    set(value) {
-      const key = toValue(options.key);
-
-      if (key) {
-        form?.setAndValidate(key, value);
-      }
-
-      options.value.value = value;
+  function get() {
+    if (key && form) {
+      return _get(form.values.value, toValue(key));
     }
-  })
+  }
 
-  watch(options.value, (newValue) => {
-    if (!_isEqual(value.value, newValue)) {
-      value.value = newValue;
-    }
-  })
+  function set(value: any) {
+    form?.set(toValue(key), value);
+  }
+
+  function setAndValidate(value: any) {
+    form?.setAndValidate(toValue(key), value);
+  }
 
   function canSet() {
     return form?.canSet() ?? true;
   }
 
-  return {
-    value,
-    error: computed(() => form?.getError(toValue(options.key))),
-    canSet
+  function clearError() {
+    delete form?.errors.value[toValue(key)];
   }
+
+  watch(
+    modelValue,
+    (newValue, oldValue) => {
+      const currentValue = get();
+
+      if (oldValue === undefined && newValue === oldValue) {
+        modelValue.value = currentValue;
+        return;
+      }
+
+      if (!_isEqual(newValue, currentValue)) {
+        setAndValidate(newValue);
+      }
+    },
+    { deep: true, immediate: true }
+  );
+
+  watch(
+    get,
+    (newValue) => {
+      if (!_isEqual(newValue, modelValue.value)) {
+        modelValue.value = newValue;
+      }
+    },
+    { deep: true }
+  );
+
+  return {
+    error: computed(() => form?.getError(toValue(key))),
+    canSet,
+    clearError,
+    get,
+    set,
+    setAndValidate,
+  };
 }

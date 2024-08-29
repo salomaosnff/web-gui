@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { uniqueId } from 'lodash-es';
+import { uniqueId as _uniqueId } from 'lodash-es';
 import { computed } from 'vue';
 import { useFormField } from '../../composable/useForm';
 
@@ -33,15 +33,15 @@ const props = withDefaults(
 
     controlId?: string;
   }>(),
-  { autocomplete: "off", color: "primary", controlId: () => uniqueId('text-field-control-') }
+  { autocomplete: "off", color: "primary", controlId: () => _uniqueId('text-field-control-') }
 );
 
 const modelValue = defineModel<string>("modelValue");
 const showPassword = defineModel<boolean>("showPassword");
 
-const { value: fieldValue, error: fieldError, canSet } = useFormField({
+const { error: fieldError, canSet } = useFormField<string>({
   key: () => props.name ?? '',
-  value: modelValue,
+  modelValue
 })
 
 const isDisabled = computed(() => props.disabled || !canSet());
@@ -55,10 +55,10 @@ const isDisabled = computed(() => props.disabled || !canSet());
       <UiIcon v-if="type === 'search'" name="mdiMagnify" class="text-1.5em ml-2 text-muted" />
       <slot name="prepend"></slot>
     </template>
-    <textarea v-if="multiline" v-model="fieldValue" :id="controlId"
+    <textarea v-if="multiline" v-model="modelValue" :id="controlId"
       class="flex-1 ui-textfield__control bg-transparent fg--foreground px-2 py-1" :minlength :maxlength
       :disabled="isDisabled" :placeholder :autocomplete :autofocus></textarea>
-    <input v-else v-model="fieldValue" :id="controlId"
+    <input v-else v-model="modelValue" :id="controlId"
       class="flex-1 ui-textfield__control bg-transparent fg--foreground px-2" :type="showPassword ? 'text' : type" :min
       :max :minlength :maxlength :disabled="isDisabled" :step :placeholder :autocomplete :autofocus />
   </UiInput>

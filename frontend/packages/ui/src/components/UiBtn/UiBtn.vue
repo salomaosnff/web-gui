@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { SUBMITTING, useForm, VALID, VALIDATING } from "../../composable/useForm";
+import {
+  SUBMITTING,
+  useForm,
+  VALID,
+  VALIDATING,
+} from "../../composable/useForm";
 import { vColor } from "../../directives/vColor";
 
 const props = withDefaults(
@@ -12,6 +17,7 @@ const props = withDefaults(
     loading?: boolean;
     icon?: boolean;
     flat?: boolean;
+    noFormIntegration?: boolean;
     onClick?(event: MouseEvent): void | Promise<void>;
   }>(),
   {
@@ -21,7 +27,7 @@ const props = withDefaults(
   }
 );
 
-const form = useForm()
+const form = useForm();
 
 const pendingTask = ref(false);
 
@@ -40,59 +46,70 @@ async function handleClick(event: MouseEvent) {
 
 const isLoading = computed(() => {
   if (props.loading || pendingTask.value) {
-    return true
+    return true;
   }
 
-  if (props.type === 'submit' && form) {
+  if (!props.noFormIntegration && props.type === "submit" && form) {
     const state: number = form.state.value;
 
     if (state & SUBMITTING || state & VALIDATING) {
-      return true
+      return true;
     }
 
-    return false
+    return false;
   }
 });
 
 const isDisabled = computed(() => {
   if (props.disabled || pendingTask.value) {
-    return true
+    return true;
   }
 
-  if (!form) {
-    return false
+  if (props.noFormIntegration || !form) {
+    return false;
   }
 
   const state: number = form.state.value;
 
-  if (props.type === 'submit') {
-
-    return state & SUBMITTING || state & VALIDATING || !(state & VALID)
+  if (props.type === "submit") {
+    return state & SUBMITTING || state & VALIDATING || !(state & VALID);
   }
 
-  if (props.type === 'reset') {
-    return state & SUBMITTING
+  if (props.type === "reset") {
+    return state & SUBMITTING;
   }
 
-  return false
+  return false;
 });
 </script>
 <template>
-  <component v-color="color" :is="is" class="ui-btn" :type :class="{
-    'ui-btn--disabled': isDisabled,
-    'cursor-wait': isLoading,
-    'ui-btn--icon': icon,
-    'ui-btn--flat': flat,
-  }" @click="handleClick">
+  <component
+    v-color="color"
+    :is="is"
+    class="ui-btn"
+    :type
+    :class="{
+      'ui-btn--disabled': isDisabled,
+      'cursor-wait': isLoading,
+      'ui-btn--icon': icon,
+      'ui-btn--flat': flat,
+    }"
+    @click="handleClick"
+  >
     <Transition>
-      <div v-if="isLoading"
-        class="ui-btn__loading w-full h-full absolute top-0 left-0 flex items-center justify-center">
+      <div
+        v-if="isLoading"
+        class="ui-btn__loading w-full h-full absolute top-0 left-0 flex items-center justify-center"
+      >
         <UiIcon name="mdiRefresh" class="animate-spin text-6" />
       </div>
     </Transition>
-    <div class="ui-btn__content" :class="{
-      'ui-btn__content--loading': isLoading,
-    }">
+    <div
+      class="ui-btn__content"
+      :class="{
+        'ui-btn__content--loading': isLoading,
+      }"
+    >
       <slot />
     </div>
   </component>
@@ -127,7 +144,6 @@ const isDisabled = computed(() => {
   }
 
   &__loading {
-
     &.v-enter-active,
     &.v-leave-active {
       transition: all 0.25s;
@@ -167,7 +183,7 @@ const isDisabled = computed(() => {
     }
   }
 
-  &:not(&--icon)>.ui-btn__content {
+  &:not(&--icon) > .ui-btn__content {
     display: flex;
     width: 100%;
     height: 100%;

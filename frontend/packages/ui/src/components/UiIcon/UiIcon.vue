@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import * as AllIcons from '@mdi/js';
-import { computed } from 'vue';
+import * as AllIcons from "@mdi/js";
+import { computed } from "vue";
 
 const props = defineProps<{
-  name?: keyof typeof AllIcons
-  path?: string
-}>()
+  name?: keyof typeof AllIcons;
+  path?: string;
+}>();
 
 const path = computed(() => {
   if (props.name) {
-    return AllIcons[props.name]
+    return AllIcons[props.name];
   }
-  return props.path
-})
+  return props.path;
+});
 </script>
 <template>
   <svg class="ui-icon" viewBox="0 0 24 24" style="fill: currentColor">
