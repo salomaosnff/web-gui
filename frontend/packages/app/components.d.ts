@@ -7,7 +7,8 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AppCanvas: typeof import('./src/components/AppCanvas.vue')['default']
+    AppCanvas: typeof import('./src/components/AppCanvas/AppCanvas.vue')['default']
+    AppCanvasInspectBox: typeof import('./src/components/AppCanvas/AppCanvasInspectBox.vue')['default']
     AppPanel: typeof import('./src/components/AppPanel.vue')['default']
     AppSettingsBoolean: typeof import('./src/components/AppSettingsForm/fields/boolean/AppSettingsBoolean.vue')['default']
     AppSettingsForm: typeof import('./src/components/AppSettingsForm/AppSettingsForm.vue')['default']
@@ -15,9 +16,11 @@ declare module 'vue' {
     AppSettingsSelect: typeof import('./src/components/AppSettingsForm/fields/select/AppSettingsSelect.vue')['default']
     AppSettingsTextField: typeof import('./src/components/AppSettingsForm/fields/text/AppSettingsTextField.vue')['default']
     AppView: typeof import('./src/components/AppView.vue')['default']
+    AppWindow: typeof import('./src/components/AppWindow.vue')['default']
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    Types: typeof import('./src/components/AppCanvas/types.vue')['default']
     UiBtn: typeof import('./../ui/src/components/UiBtn/UiBtn.vue')['default']
     UiCheckbox: typeof import('./../ui/src/components/UiCheckbox/UiCheckbox.vue')['default']
     UiForm: typeof import('./../ui/src/components/UiForm/UiForm.vue')['default']

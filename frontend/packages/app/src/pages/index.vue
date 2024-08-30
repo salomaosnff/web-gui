@@ -91,12 +91,79 @@ const items: MenuItem[] = [
 const menuPath = ref<MenuItem[]>([items[0]]);
 const loaded = ref(false);
 const isMobile = ref(false);
+
+const html = ref(`
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Page</title>
+
+  <style>
+  * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  }
+    html, body {
+        width: 100%;
+        height: 100%;
+    }
+
+    #bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: -1;
+    }
+
+    .content{
+        position: relative;
+        z-index: 1;
+        display: grid;
+        place-items:center;
+        height: 100vh;
+    }
+  </style>
+</head>
+
+<body>
+<div>
+    <div>
+        <p>
+            <em>
+                <span>Ok</span>
+            </em>
+        </p>
+    </div>
+</div>
+<div id="bg"></div>
+  <div class="content">
+    <h1>Hello <span>World</span>!</h1>
+    <p>Eu sou um parágrafo</p>
+    <img width="50%" src="https://platinumlist.net/guide/wp-content/uploads/2023/03/8359_img_worlds_of_adventure-big1613913137.jpg-1024x683.webp" />
+  </div>
+</body>
+
+</html>
+`);
+
+const lockIframe = ref(false);
+
+provide("lockIframe", {
+  lockIframe,
+});
 </script>
 <template>
   <div class="w-full h-full flex flex-col pa-2 gap-2">
     <AppPanel class="shadow-lg">
       <div>
-        <UiOverlayMenu visible origin="bottom-start">
+        <UiOverlayMenu origin="bottom-start">
           <template #activator="{ attrs }">
             <UiBtn v-bind="attrs" icon flat class="h-8">
               <UiIcon name="mdiTools" />
@@ -188,27 +255,18 @@ const isMobile = ref(false);
         </UiBtn>
       </div>
     </AppPanel>
-    <div
-      class="w-full flex-1 gap-2 relative justify-center items-center"
-    >
-      <iframe
-        class="h-full rounded-md transition-all duration-1000 mx-auto bg--surface shadow-lg"
-        :class="[
-          loaded ? ['visible', 'opacity-100'] : ['invisible', 'opacity-0'],
-          isMobile ? 'w-480px' : 'w-full',
-        ]"
-        frameborder="0"
-        src="https://wikipedia.org"
-        anonymous
-        @load="loaded = true"
-      ></iframe>
-
-      <UiIcon
-        v-if="!loaded"
-        name="mdiRefresh"
-        class="fg--muted absolute top-50% right-50% translate-[-50%,-50%] animate-spin text-25"
+    <div class="w-full flex-1 gap-2 relative justify-center items-center">
+      <AppCanvas
+        v-model:html="html"
+        :is-mobile
+        class="mx-auto h-full bg-white"
+        :class="{
+          'pointer-events-none': lockIframe,
+        }"
       />
     </div>
+
+    <AppWindow html="<h1 style='color: white'>Sou uma Janela :)</h1>" />
   </div>
 </template>
 <style scoped>

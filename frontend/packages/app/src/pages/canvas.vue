@@ -59,23 +59,24 @@ const html = ref(`
 </body>
 
 </html>
-`)
+`);
 
-const hover = ref<HTMLElement>()
-const activeEl = ref<HTMLElement>()
+const hover = ref<HTMLElement>();
+const activeEl = ref<HTMLElement>();
 
-watch(hover, (el) => console.log(el))
-watch(activeEl, (el) => console.log(el))
-
-
-
-
+watch(hover, (el) => console.log(el));
+watch(activeEl, (el) => console.log(el));
 </script>
 
 <template>
-    <div>
-        <AppCanvas v-model:active-el="activeEl" v-model:hover-el="hover" v-model:html="html" class="!bg-white w-200 h-200 mt-20" />
-        <UiTextField v-model="html" multiline />
-
-    </div>
+  <div>
+    <AppCanvas
+      v-model:active-el="activeEl"
+      v-model:hover-el="hover"
+      v-model:html="html"
+      class="!bg-white w-200 h-200 mt-20"
+    />
+    <UiTextField v-model="html" multiline />
+    <AppWindow visible :html />
+  </div>
 </template>
